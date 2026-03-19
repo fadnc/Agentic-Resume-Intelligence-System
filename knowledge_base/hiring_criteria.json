@@ -1,0 +1,38 @@
+[
+  {
+    "id": "hc_levels_001",
+    "domain": "general",
+    "category": "engineering_levels",
+    "content": "Engineering level rubrics used by leading tech companies: Junior (L3/SWE I) — executes well-defined tasks with guidance, writes clean code, asks good questions, learns quickly. Does not yet own features independently. Mid-level (L4/SWE II) — owns features end-to-end, contributes to design discussions, unblocks themselves, writes tests, reviews peers' code. Senior (L5/Senior SWE) — defines technical direction for a team, designs systems, mentors others, manages project ambiguity, identifies cross-team dependencies. Staff (L6/Staff SWE) — sets technical direction across multiple teams or a domain, drives org-wide standards, resolves architectural conflicts, works directly with leadership. Principal+ (L7+) — shapes multi-year technical strategy, influences org structure, thought leader internally and externally."
+  },
+  {
+    "id": "hc_swe_rubric_001",
+    "domain": "software_engineering",
+    "category": "evaluation_criteria",
+    "content": "How hiring managers evaluate software engineering candidates: Technical skills — depth in at least one language, breadth across the stack, ability to design systems that are scalable, maintainable, and observable. Problem-solving — breaks down complex problems, considers edge cases, communicates trade-offs clearly. Code quality — clean, readable, testable code with appropriate abstractions. System design — can design services that handle real-world constraints (scale, latency, fault tolerance, cost). Collaboration — works well with product and design, communicates technical concepts to non-engineers, gives and receives feedback constructively. Growth mindset — learns from failures, stays current with technology, seeks feedback. Red flags: only lists technologies without demonstrating depth, no evidence of production systems, no metrics on impact."
+  },
+  {
+    "id": "hc_ds_rubric_001",
+    "domain": "data_science",
+    "category": "evaluation_criteria",
+    "content": "How hiring managers evaluate data science candidates: Statistical foundations — understands probability, distributions, hypothesis testing, and when to apply different methods. ML breadth — knows supervised, unsupervised, and reinforcement learning paradigms, can select appropriate algorithms. Practical ML — understands the full lifecycle from data cleaning to model deployment, not just model fitting. Communication — can explain complex analyses to non-technical stakeholders, visualizes data clearly. Business acumen — frames problems in terms of business outcomes, not just model metrics. Engineering — can write production-quality code and work with data engineers to productionize models. Red flags: only experience in notebooks with no deployment, cannot explain model choices, ignores class imbalance or data leakage, unfamiliar with experiment design."
+  },
+  {
+    "id": "hc_resume_quality_001",
+    "domain": "general",
+    "category": "resume_quality",
+    "content": "What makes a resume score highly with recruiters and hiring managers: Impact quantification — every bullet should answer 'so what?' with a number (%, $, x speedup, # users affected). Action verb strength — strong: architected, led, redesigned, drove, reduced, increased. Weak: helped, worked on, assisted, participated. Specificity — name the technology, the scale, the outcome. Avoid vague phrases like 'various tools' or 'improved performance.' Relevance — tailor skills and bullets to the target role. Trim irrelevant experience ruthlessly. Clarity — short, dense bullets, no walls of text, consistent formatting. ATS compatibility — include exact keywords from the job description, avoid tables and graphics that confuse parsers. One page for <5 years experience; two pages for senior+. Recency — put most recent and most relevant experience first."
+  },
+  {
+    "id": "hc_ats_scoring_001",
+    "domain": "general",
+    "category": "ats_scoring",
+    "content": "How ATS (Applicant Tracking Systems) score resumes: Keyword matching — ATS parses the resume and counts occurrences of keywords from the job description. Missing key terms = lower score even if the candidate is qualified. Section detection — ATS looks for standard section headers (Work Experience, Education, Skills, Certifications). Unusual headers may cause parsing failures. Format sensitivity — tables, columns, headers/footers, text boxes, and graphics often cause parsing errors. Use a single-column, plain-text-friendly format. File format — PDF is generally safe but some older ATS systems prefer DOCX. Skills section — explicit skills sections dramatically improve ATS scores. List both spelled-out and abbreviated versions (e.g., 'Machine Learning (ML)', 'Natural Language Processing (NLP)'). Date formats — use consistent, unambiguous date formats (e.g., Jan 2022 – Mar 2024). Gaps — unexplained employment gaps are flagged; include freelance, contract, or educational activity to fill them."
+  },
+  {
+    "id": "hc_interview_signals_001",
+    "domain": "general",
+    "category": "interview_preparation",
+    "content": "Signals interviewers look for that should be reflected in resumes: Ownership language — 'I designed', 'I led', 'I drove' rather than 'we did' or 'the team built.' Scope clarity — how large was the team, how many users, what was the revenue impact, what was the system scale (QPS, data volume, uptime). Decision-making — evidence that you made trade-off decisions, not just executed others' plans. Learning from failure — interviewers respect candidates who mention challenges and how they overcame them. Technical depth cues — resume bullets that mention specific algorithms, design patterns, or architectural choices signal genuine technical depth and invite good interview conversations. Cross-functional work — evidence of working with product, design, data, or business teams shows maturity."
+  }
+]

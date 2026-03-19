@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ats_swe_languages",
+    "domain": "software_engineering",
+    "category": "languages_and_frameworks",
+    "content": "High-frequency ATS keywords for software engineering roles — languages and frameworks: Python, Java, Go, Golang, C++, C#, TypeScript, JavaScript, Rust, Kotlin, Swift. Frameworks and runtimes: FastAPI, Django, Flask, Spring Boot, Node.js, Express, React, Next.js, Vue.js, Angular, gRPC, GraphQL, REST, WebSockets. Testing: pytest, JUnit, Jest, Cypress, Selenium, test-driven development (TDD), unit testing, integration testing, end-to-end testing. Build tools: Maven, Gradle, Webpack, Vite, Bazel."
+  },
+  {
+    "id": "ats_swe_infra",
+    "domain": "software_engineering",
+    "category": "infrastructure_and_cloud",
+    "content": "High-frequency ATS keywords for software engineering roles — infrastructure and cloud: AWS (EC2, S3, Lambda, RDS, DynamoDB, SQS, SNS, EKS, ECS, CloudFormation), GCP (Cloud Run, BigQuery, Pub/Sub, GKE, Cloud Functions), Azure (AKS, Azure Functions, Cosmos DB, Service Bus). Containers and orchestration: Docker, Kubernetes, Helm, ArgoCD, Istio. CI/CD: GitHub Actions, Jenkins, GitLab CI, CircleCI, Terraform, Ansible, Pulumi. Observability: Prometheus, Grafana, Datadog, OpenTelemetry, Jaeger, ELK Stack, Splunk. Databases: PostgreSQL, MySQL, MongoDB, Redis, Cassandra, Elasticsearch, DynamoDB."
+  },
+  {
+    "id": "ats_ds_ml",
+    "domain": "data_science",
+    "category": "ml_and_data",
+    "content": "High-frequency ATS keywords for data science and ML roles: Python, R, SQL, pandas, numpy, scikit-learn, XGBoost, LightGBM, PyTorch, TensorFlow, Keras, Hugging Face, transformers, BERT, GPT, LLM fine-tuning, RAG, vector databases (Pinecone, Weaviate, FAISS, Chroma). ML lifecycle: feature engineering, model training, hyperparameter tuning, cross-validation, model evaluation (AUC, F1, precision, recall, RMSE), A/B testing, experiment design, statistical significance. MLOps: MLflow, Weights & Biases, DVC, Kubeflow, SageMaker, Vertex AI, model monitoring, drift detection, model registry. Data: Spark, Kafka, Airflow, dbt, SQL, Snowflake, BigQuery, Redshift, Hive, Tableau, Looker, Power BI."
+  },
+  {
+    "id": "ats_devops",
+    "domain": "devops",
+    "category": "devops_and_sre",
+    "content": "High-frequency ATS keywords for DevOps and SRE roles: Kubernetes, Docker, Terraform, Helm, ArgoCD, Flux, Jenkins, GitHub Actions, GitLab CI, CircleCI, AWS, GCP, Azure, Linux, Bash scripting, Python, Go. Reliability: SLO, SLA, SLI, error budgets, incident management, on-call, runbooks, postmortem, chaos engineering, Chaos Monkey. Monitoring: Prometheus, Grafana, Datadog, PagerDuty, VictorOps, ELK Stack, Splunk, OpenTelemetry. Security: RBAC, IAM, secrets management (Vault, AWS Secrets Manager), network policies, Pod Security Admission, SAST, DAST. Certifications: CKA, CKAD, AWS Solutions Architect, GCP Professional Cloud Architect, Terraform Associate."
+  },
+  {
+    "id": "ats_backend",
+    "domain": "backend_engineering",
+    "category": "backend_systems",
+    "content": "High-frequency ATS keywords for backend engineering roles: REST API, GraphQL, gRPC, microservices, event-driven architecture, message queues (Kafka, RabbitMQ, SQS), caching (Redis, Memcached), rate limiting, API gateway, authentication (OAuth2, JWT, OpenID Connect), authorization (RBAC, ABAC), database design, ORM, indexing, query optimization, connection pooling, sharding, replication, CAP theorem, distributed systems, idempotency, eventual consistency, saga pattern, CQRS, event sourcing, load balancing, circuit breaker, retry logic, graceful degradation, blue-green deployment, canary releases."
+  },
+  {
+    "id": "ats_pm",
+    "domain": "product_management",
+    "category": "product_management",
+    "content": "High-frequency ATS keywords for product management roles: product roadmap, product strategy, OKRs, KPIs, user stories, acceptance criteria, backlog grooming, sprint planning, agile, scrum, kanban, product discovery, user research, customer interviews, usability testing, A/B testing, feature prioritization (RICE, MoSCoW, Kano), stakeholder management, go-to-market strategy, product-market fit, churn, retention, DAU, MAU, conversion rate, NPS, CSAT, LTV, CAC, funnel analysis, cohort analysis, Mixpanel, Amplitude, Looker, JIRA, Confluence, Figma, product-led growth (PLG), B2B SaaS, enterprise sales cycle."
+  },
+  {
+    "id": "ats_de",
+    "domain": "data_engineering",
+    "category": "data_engineering",
+    "content": "High-frequency ATS keywords for data engineering roles: ETL, ELT, data pipeline, Apache Spark, Apache Kafka, Apache Flink, Apache Airflow, Dagster, Prefect, dbt, SQL, Python, Scala, data warehouse, data lake, data lakehouse, Snowflake, BigQuery, Redshift, Delta Lake, Apache Iceberg, Hudi, Parquet, Avro, JSON, schema registry, data modeling, star schema, dimensional modeling, CDC (change data capture), Debezium, streaming vs batch, data quality, Great Expectations, Monte Carlo, data contracts, data lineage, data catalog (DataHub, Amundsen), Databricks, PySpark, infrastructure-as-code, cost optimization, partitioning, clustering, indexing."
+  },
+  {
+    "id": "ats_general",
+    "domain": "general",
+    "category": "soft_skills_and_general",
+    "content": "High-frequency ATS keywords applicable across all technical roles — soft skills and general: cross-functional collaboration, technical leadership, mentorship, code review, documentation, agile methodology, project ownership, stakeholder communication, problem solving, analytical thinking, system design, scalability, reliability, performance optimization, incident response, root cause analysis, on-call, technical roadmap, architecture review, engineering excellence, hiring and interviews, diversity and inclusion, remote collaboration. General action verbs valued in resumes: architected, designed, built, developed, led, owned, drove, delivered, launched, reduced, improved, increased, migrated, implemented, optimized, automated, scaled, mentored, collaborated, defined."
+  }
+]
