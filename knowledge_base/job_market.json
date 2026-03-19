@@ -1,0 +1,50 @@
+[
+  {
+    "id": "jm_swe_001",
+    "domain": "software_engineering",
+    "role": "Software Engineer",
+    "content": "Software Engineers design, develop, and maintain software systems. Core responsibilities include writing clean, scalable code, participating in code reviews, collaborating with cross-functional teams, and contributing to system architecture decisions. Expected skills: proficiency in one or more programming languages (Python, Java, Go, C++), data structures and algorithms, version control with Git, REST API design, unit and integration testing. Mid-level engineers are expected to own features end-to-end, mentor juniors, and estimate project timelines accurately."
+  },
+  {
+    "id": "jm_swe_002",
+    "domain": "software_engineering",
+    "role": "Senior Software Engineer",
+    "content": "Senior Software Engineers lead technical design and are accountable for the reliability and scalability of systems they own. Responsibilities include system design, architectural reviews, defining engineering standards, and mentoring junior engineers. Expected skills: distributed systems design, microservices architecture, cloud platforms (AWS/GCP/Azure), CI/CD pipelines, observability and monitoring (Prometheus, Grafana, Datadog), performance profiling, and cross-team technical leadership. Senior engineers are expected to drive initiatives with ambiguous requirements and produce high-quality technical documentation."
+  },
+  {
+    "id": "jm_ds_001",
+    "domain": "data_science",
+    "role": "Data Scientist",
+    "content": "Data Scientists extract insights from large datasets to drive business decisions. Core responsibilities include exploratory data analysis, feature engineering, building and evaluating ML models, and communicating findings to stakeholders. Expected skills: Python (pandas, scikit-learn, numpy), statistical modeling, machine learning algorithms, SQL, data visualization (matplotlib, seaborn, Tableau), A/B testing, and experiment design. Data scientists are expected to translate ambiguous business questions into structured analytical problems and present results clearly to non-technical audiences."
+  },
+  {
+    "id": "jm_ds_002",
+    "domain": "data_science",
+    "role": "ML Engineer",
+    "content": "ML Engineers bridge research and production, building systems to deploy and serve ML models at scale. Responsibilities include model training pipelines, feature stores, model serving infrastructure, and monitoring model performance in production. Expected skills: MLflow or similar experiment tracking, Docker and Kubernetes for model serving, distributed training (PyTorch, TensorFlow), data pipeline orchestration (Airflow, Prefect), model monitoring and drift detection, and cloud ML platforms (SageMaker, Vertex AI). Strong software engineering fundamentals are essential."
+  },
+  {
+    "id": "jm_pm_001",
+    "domain": "product_management",
+    "role": "Product Manager",
+    "content": "Product Managers own the vision, strategy, and roadmap for a product or feature area. Core responsibilities include gathering customer insights, defining requirements, prioritizing features, and working with engineering and design to ship products. Expected skills: user story writing, roadmap planning, stakeholder management, data-driven decision making, user research methods, agile and scrum methodologies, product analytics tools (Mixpanel, Amplitude), and strong written and verbal communication. PMs must balance short-term delivery with long-term strategy."
+  },
+  {
+    "id": "jm_devops_001",
+    "domain": "devops",
+    "role": "DevOps Engineer",
+    "content": "DevOps Engineers build and maintain the infrastructure and deployment pipelines that enable engineering teams to ship reliably and quickly. Responsibilities include managing CI/CD pipelines, infrastructure-as-code, container orchestration, cloud resource management, and incident response. Expected skills: Kubernetes, Docker, Terraform, Helm, Jenkins or GitHub Actions, AWS/GCP/Azure, Linux systems administration, monitoring and alerting setup, and security best practices. DevOps engineers are expected to reduce toil through automation and improve system reliability metrics (MTTR, change failure rate)."
+  },
+  {
+    "id": "jm_de_001",
+    "domain": "data_engineering",
+    "role": "Data Engineer",
+    "content": "Data Engineers design and build data infrastructure to enable analytics and ML workflows. Responsibilities include building ETL/ELT pipelines, managing data warehouses, ensuring data quality, and working with data scientists to support their needs. Expected skills: SQL and NoSQL databases, Apache Spark, Kafka, Airflow or Dagster, cloud data warehouses (Snowflake, BigQuery, Redshift), Python, data modeling, and schema design. Data engineers must balance pipeline reliability with cost efficiency and data freshness requirements."
+  },
+  {
+    "id": "jm_backend_001",
+    "domain": "backend_engineering",
+    "role": "Backend Engineer",
+    "content": "Backend Engineers build the server-side logic, APIs, and data storage systems that power applications. Responsibilities include API design and development, database schema design, performance optimization, and integration with third-party services. Expected skills: REST and GraphQL API development, relational and NoSQL databases (PostgreSQL, MongoDB, Redis), message queues (Kafka, RabbitMQ), caching strategies, authentication and authorization (OAuth2, JWT), and cloud deployment. Backend engineers must ensure APIs are secure, performant, and well-documented."
+  }
+]

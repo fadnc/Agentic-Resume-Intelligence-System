@@ -1,0 +1,44 @@
+[
+  {
+    "id": "re_swe_001",
+    "domain": "software_engineering",
+    "level": "mid",
+    "content": "Strong software engineering resumes lead with quantified impact. Example high-scoring bullets: 'Redesigned authentication service handling 2M daily active users, reducing p99 latency from 800ms to 120ms by introducing Redis token caching.' 'Led migration of legacy monolith to microservices architecture, enabling independent deployment of 12 services and reducing release cycle from 3 weeks to 2 days.' 'Implemented distributed rate limiting using Redis and Lua scripting, protecting APIs from abuse while maintaining 99.95% uptime across 15 endpoints.' Skills sections should list languages, frameworks, cloud platforms, and tools with specificity. Education and certifications should be concise."
+  },
+  {
+    "id": "re_swe_002",
+    "domain": "software_engineering",
+    "level": "senior",
+    "content": "Senior SWE resumes must demonstrate scope, ownership, and impact at org level. Example high-scoring bullets: 'Architected event-driven data platform processing 50M events/day using Kafka and Flink, replacing batch ETL jobs and enabling real-time analytics for 5 product teams.' 'Defined engineering standards for observability across 30-engineer org, reducing mean time to detect (MTTD) incidents from 45 minutes to under 8 minutes.' 'Drove technical strategy for payments infrastructure serving $2B annual GMV, including PCI compliance, fraud detection integration, and a zero-downtime migration to a new processor.' Resumes should show progression of scope and explicit mention of team size, system scale, and business outcome."
+  },
+  {
+    "id": "re_ds_001",
+    "domain": "data_science",
+    "level": "mid",
+    "content": "Data science resumes should demonstrate the full ML lifecycle, not just modeling. Example high-scoring bullets: 'Built churn prediction model using XGBoost on 18 months of behavioral data, achieving AUC of 0.91 and enabling targeted retention campaigns that reduced monthly churn by 14%.' 'Designed and ran A/B experiment for recommendation algorithm change, powering statistical significance analysis in Python and presenting results to VP of Product.' 'Automated weekly reporting pipeline using Airflow and dbt, saving 6 hours of analyst time per week and reducing reporting errors by 90%.' Resumes should show proficiency in experimentation, communication, and production deployment — not just notebook work."
+  },
+  {
+    "id": "re_mle_001",
+    "domain": "ml_engineering",
+    "level": "mid",
+    "content": "ML Engineering resumes must show both ML knowledge and strong software engineering. Example high-scoring bullets: 'Built model serving infrastructure on AWS SageMaker supporting 12 production models with auto-scaling, achieving <50ms p95 inference latency at 10K RPS.' 'Implemented feature store using Redis and Feast, enabling real-time feature serving for fraud detection model and reducing feature engineering duplication across 4 teams.' 'Reduced model training time by 3x by implementing distributed training with PyTorch DDP across 8 A100 GPUs, enabling daily retraining of recommendation model.' Resumes should show MLOps maturity, including monitoring, retraining pipelines, and cost awareness."
+  },
+  {
+    "id": "re_devops_001",
+    "domain": "devops",
+    "level": "mid",
+    "content": "DevOps resumes should quantify reliability improvements and automation wins. Example high-scoring bullets: 'Migrated 40+ microservices to Kubernetes on EKS, reducing infrastructure costs by 35% and improving deployment frequency from weekly to 20+ deploys per day.' 'Built GitOps pipeline using ArgoCD and GitHub Actions, enabling self-service deployments for 8 engineering teams and reducing deployment lead time from 4 hours to 12 minutes.' 'Implemented SLO-based alerting framework with Prometheus and Grafana, reducing alert noise by 70% and improving on-call engineer experience.' Certifications like CKA, AWS Solutions Architect, or Terraform Associate add significant credibility."
+  },
+  {
+    "id": "re_pm_001",
+    "domain": "product_management",
+    "level": "mid",
+    "content": "Product management resumes must show ownership, data-driven decisions, and shipped outcomes. Example high-scoring bullets: 'Defined and launched onboarding redesign for B2B SaaS product, increasing 7-day activation rate from 31% to 58% and reducing time-to-first-value by 40%.' 'Managed roadmap for payments feature area with $12M ARR impact, coordinating delivery across 3 engineering teams and 2 external payment processors.' 'Ran discovery sprints with 25 enterprise customers to identify top friction points, translating insights into a prioritized backlog that reduced support ticket volume by 22%.' PMs should highlight stakeholder management, metrics ownership, and cross-functional delivery."
+  },
+  {
+    "id": "re_de_001",
+    "domain": "data_engineering",
+    "level": "mid",
+    "content": "Data engineering resumes should highlight pipeline scale, reliability, and cost. Example high-scoring bullets: 'Designed and built real-time ingestion pipeline using Kafka and Spark Streaming, processing 5TB/day of clickstream data with sub-minute latency for downstream analytics.' 'Migrated on-premise Hadoop cluster to Snowflake, reducing query times by 8x and infrastructure costs by 45% while improving data freshness from daily to hourly.' 'Implemented data quality framework using Great Expectations integrated into Airflow DAGs, catching 99.2% of schema violations before they reached production analytics tables.' Resumes should show mastery of the modern data stack and awareness of cost/performance tradeoffs."
+  }
+]
