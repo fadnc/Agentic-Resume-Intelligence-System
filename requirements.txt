@@ -1,12 +1,12 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
 sentence-transformers
 faiss-cpu
-langchain
 pydantic
 streamlit
 boto3
 python-dotenv
 pymupdf
 groq
+pytest
