@@ -18,16 +18,8 @@ RUN pip install --no-cache-dir \
 
 COPY knowledge_base/ ./knowledge_base/
 COPY backend/ ./backend/
-
-# Pre-embed all 4 KB corpora and bake indexes into image
-# Render free tier has no persistent disk — this avoids cold-start rebuild
-RUN python -c " \
-import sys \
-sys.path.insert(0, '.') \
-from backend.services.corpus_builder import load_all_corpora \
-load_all_corpora() \
-print('Knowledge base indexed successfully.') \
-"
+COPY init_kb.py .
+RUN python init_kb.py
 
 # ── Stage 2: Lean production image ────────────────────────────────────────────
 FROM python:3.12-slim
