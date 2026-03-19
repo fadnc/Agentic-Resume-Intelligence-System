@@ -185,4 +185,4 @@ def get_eval_summary() -> dict:
 
 def get_eval_history(limit: int = 50) -> list[dict]:
     """Return the most recent `limit` eval records as dicts."""
-    return [r.to_dict() for r in _eval_log[-limit:]]
+    return [r.to_dict() for r in _eval_log[-limit:]]    
