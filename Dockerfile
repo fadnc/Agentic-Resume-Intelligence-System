@@ -21,12 +21,12 @@ COPY backend/ ./backend/
 
 # Pre-embed all 4 KB corpora and bake indexes into image
 # Render free tier has no persistent disk — this avoids cold-start rebuild
-RUN python -c "
-import sys
-sys.path.insert(0, '.')
-from backend.services.corpus_builder import load_all_corpora
-load_all_corpora()
-print('Knowledge base indexed successfully.')
+RUN python -c " \
+import sys \
+sys.path.insert(0, '.') \
+from backend.services.corpus_builder import load_all_corpora \
+load_all_corpora() \
+print('Knowledge base indexed successfully.') \
 "
 
 # ── Stage 2: Lean production image ────────────────────────────────────────────
