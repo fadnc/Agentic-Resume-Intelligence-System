@@ -1,7 +1,6 @@
 fastapi
 uvicorn[standard]
-python-multipart
-sentence-transformers
+python-multipart 
 faiss-cpu
 pydantic
 streamlit
@@ -10,3 +9,5 @@ python-dotenv
 pymupdf
 groq
 pytest
+sentence-transformers==2.7.0
+transformers==4.41.0
