@@ -345,6 +345,8 @@ The Streamlit UI includes a dedicated **📈 Eval Metrics** tab showing per-infe
 | `BACKEND_URL` | `http://localhost:8000` | Frontend → backend URL (Streamlit env var) |
 
 ---
+Deployment-ready for AWS ECS Fargate (see deploy.sh). Currently hosted on Render free tier.
+---
 
 ## Contributing
 

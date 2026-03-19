@@ -1,0 +1,23 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir flask gunicorn requests
+
+COPY flask_frontend/ ./flask_frontend/
+
+EXPOSE 5000
+
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Single worker on free tier (512MB RAM limit)
+CMD ["gunicorn", "flask_frontend.app:app", \
+     "--bind", "0.0.0.0:5000", \
+     "--workers", "1", \
+     "--timeout", "200", \
+     "--keep-alive", "5"]
