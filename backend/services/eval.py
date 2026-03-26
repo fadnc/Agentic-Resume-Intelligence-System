@@ -2,64 +2,100 @@
 eval.py
 
 RAGAS-inspired retrieval quality metrics computed per inference.
+Results are persisted to a local SQLite database so they survive
+server restarts, re-deploys, and Render free-tier cold starts.
 
 Metrics:
-  1. context_relevance   — how semantically similar are the retrieved chunks
-                           to the query (job description)?  0–1 cosine score.
+  1. context_relevance  — how semantically similar are the retrieved
+                          chunks to the job description?  0–1 cosine.
 
-  2. faithfulness        — does the LLM output stay grounded in the retrieved
-                           context, or does it introduce content not present?
-                           Measured as token-overlap (Jaccard) between context
-                           and LLM response.  0–1.
+  2. faithfulness       — does the LLM output stay grounded in the
+                          retrieved context?  Jaccard token overlap. 0–1.
+                          (TODO: replace with NLI entailment for accuracy)
 
-  3. answer_relevance    — does the LLM response address the query (JD)?
-                           Cosine similarity between JD embedding and
-                           response embedding.  0–1.
+  3. answer_relevance   — does the LLM response address the JD?
+                          Cosine similarity between JD and response
+                          embeddings.  0–1.
 
-Each inference appends an EvalRecord to an in-memory log (capped at 200).
-Aggregates are exposed via get_eval_summary().
+Database:
+  A single SQLite file at EVAL_DB_PATH (default: eval_log.db at
+  the project root).  The table is created automatically on first run.
+  All reads/writes go through _get_conn() which opens a short-lived
+  connection — safe for single-worker deployments (Render free tier,
+  local uvicorn --workers 1).
 """
 
 import time
 import logging
+import sqlite3
 import numpy as np
-from dataclasses import dataclass, field, asdict
+from pathlib import Path
+from dataclasses import dataclass, asdict
 from typing import Optional
+
 from backend.services.embeddings import embed_texts
 
 logger = logging.getLogger("resume-ai")
 
-# ── data model ─────────────────────────────────────────────────────────────────
+# ── Database path ──────────────────────────────────────────────────────────────
+# Sits at the project root so it persists across deploys if the filesystem is
+# mounted (e.g. a Render disk, a Docker volume, or plain local dev).
+EVAL_DB_PATH = Path("eval_log.db")
+
+# Cap how many rows the history endpoint will ever return.
+MAX_HISTORY = 200
+
+
+# ── Schema ─────────────────────────────────────────────────────────────────────
+
+_CREATE_TABLE = """
+CREATE TABLE IF NOT EXISTS eval_records (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp           REAL    NOT NULL,
+    context_relevance   REAL    NOT NULL,
+    faithfulness        REAL    NOT NULL,
+    answer_relevance    REAL    NOT NULL,
+    resume_chunks_used  INTEGER NOT NULL,
+    kb_chunks_used      INTEGER NOT NULL,
+    llm_score           INTEGER NOT NULL,
+    latency_ms          REAL
+);
+"""
+
+
+# ── Connection helper ──────────────────────────────────────────────────────────
+
+def _get_conn() -> sqlite3.Connection:
+    """
+    Open (or create) the SQLite database and ensure the table exists.
+    Returns a connection with row_factory set so rows behave like dicts.
+    Caller is responsible for closing.
+    """
+    conn = sqlite3.connect(str(EVAL_DB_PATH))
+    conn.row_factory = sqlite3.Row
+    conn.execute(_CREATE_TABLE)
+    conn.commit()
+    return conn
+
+
+# ── Data model ─────────────────────────────────────────────────────────────────
 
 @dataclass
 class EvalRecord:
-    timestamp: float
-    context_relevance: float          # retrieved chunks vs JD query
-    faithfulness: float               # LLM output grounded in context?
-    answer_relevance: float           # LLM output relevant to JD?
-    resume_chunks_used: int
-    kb_chunks_used: int
-    llm_score: int                    # the 0-100 score the LLM returned
-    latency_ms: Optional[float] = None
+    timestamp:           float
+    context_relevance:   float
+    faithfulness:        float
+    answer_relevance:    float
+    resume_chunks_used:  int
+    kb_chunks_used:      int
+    llm_score:           int
+    latency_ms:          Optional[float] = None
 
     def to_dict(self) -> dict:
         return asdict(self)
 
 
-# ── in-memory log ──────────────────────────────────────────────────────────────
-
-_eval_log: list[EvalRecord] = []
-_MAX_LOG_SIZE = 200
-
-
-def _append(record: EvalRecord) -> None:
-    global _eval_log
-    _eval_log.append(record)
-    if len(_eval_log) > _MAX_LOG_SIZE:
-        _eval_log = _eval_log[-_MAX_LOG_SIZE:]
-
-
-# ── metric helpers ─────────────────────────────────────────────────────────────
+# ── Metric helpers ─────────────────────────────────────────────────────────────
 
 def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """Cosine similarity between two 1-D float32 vectors."""
@@ -77,7 +113,7 @@ def _mean_cosine(query_vec: np.ndarray, chunks: list[str]) -> float:
     """
     if not chunks:
         return 0.0
-    chunk_vecs = embed_texts(chunks)          # (n, dim) float32
+    chunk_vecs = embed_texts(chunks)
     sims = [_cosine_similarity(query_vec, cv) for cv in chunk_vecs]
     return round(float(np.mean(sims)), 4)
 
@@ -87,17 +123,45 @@ def _jaccard_token_overlap(text_a: str, text_b: str) -> float:
     Token-level Jaccard similarity.
     Proxy for faithfulness: how much of the response vocabulary
     appears in the context.
+    NOTE: replace with NLI-based entailment for production accuracy.
     """
     tokens_a = set(text_a.lower().split())
     tokens_b = set(text_b.lower().split())
     if not tokens_a or not tokens_b:
         return 0.0
-    intersection = tokens_a & tokens_b
-    union = tokens_a | tokens_b
-    return round(len(intersection) / len(union), 4)
+    return round(len(tokens_a & tokens_b) / len(tokens_a | tokens_b), 4)
 
 
-# ── public API ─────────────────────────────────────────────────────────────────
+# ── Write ──────────────────────────────────────────────────────────────────────
+
+def _insert(record: EvalRecord) -> None:
+    """Persist one EvalRecord to SQLite."""
+    conn = _get_conn()
+    try:
+        conn.execute(
+            """
+            INSERT INTO eval_records
+                (timestamp, context_relevance, faithfulness, answer_relevance,
+                 resume_chunks_used, kb_chunks_used, llm_score, latency_ms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                record.timestamp,
+                record.context_relevance,
+                record.faithfulness,
+                record.answer_relevance,
+                record.resume_chunks_used,
+                record.kb_chunks_used,
+                record.llm_score,
+                record.latency_ms,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── Public API ─────────────────────────────────────────────────────────────────
 
 def compute_and_log(
     job_text: str,
@@ -108,7 +172,7 @@ def compute_and_log(
     latency_ms: float,
 ) -> EvalRecord:
     """
-    Compute all three metrics and append to the eval log.
+    Compute all three metrics, persist to SQLite, and return the record.
 
     Args:
         job_text       : raw job description string (used for faithfulness)
@@ -123,11 +187,10 @@ def compute_and_log(
     """
     all_chunks = resume_chunks + kb_chunks
 
-    # 1. Context relevance — how relevant are retrieved chunks to the JD?
+    # 1. Context relevance
     context_relevance = _mean_cosine(job_vec, all_chunks)
 
-    # 2. Faithfulness — does LLM output stay in-context?
-    # Flatten LLM response to a single string for overlap calculation
+    # 2. Faithfulness (Jaccard proxy)
     response_text = " ".join([
         str(llm_response.get("score", "")),
         " ".join(llm_response.get("missing_skills", [])),
@@ -137,10 +200,9 @@ def compute_and_log(
     context_text = " ".join(all_chunks)
     faithfulness = _jaccard_token_overlap(context_text, response_text)
 
-    # 3. Answer relevance — is the LLM response relevant to the JD?
-    response_vec = embed_texts([response_text])[0]
-    answer_relevance = _cosine_similarity(job_vec, response_vec)
-    answer_relevance = round(answer_relevance, 4)
+    # 3. Answer relevance
+    response_vec     = embed_texts([response_text])[0]
+    answer_relevance = round(_cosine_similarity(job_vec, response_vec), 4)
 
     record = EvalRecord(
         timestamp=time.time(),
@@ -153,36 +215,80 @@ def compute_and_log(
         latency_ms=round(latency_ms, 2),
     )
 
-    _append(record)
+    _insert(record)
+
     logger.info(
         f"[eval] ctx_rel={context_relevance:.3f} "
         f"faithful={faithfulness:.3f} "
         f"ans_rel={answer_relevance:.3f} "
-        f"latency={latency_ms:.0f}ms"
+        f"latency={latency_ms:.0f}ms "
+        f"[persisted to {EVAL_DB_PATH}]"
     )
     return record
 
 
 def get_eval_summary() -> dict:
-    """Aggregate stats over all logged eval records."""
-    if not _eval_log:
-        return {"total_evaluations": 0, "message": "No evaluations logged yet."}
+    """
+    Aggregate stats across ALL persisted eval records.
+    This now reflects the full history, not just the current process lifetime.
+    """
+    conn = _get_conn()
+    try:
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(*)                        AS total,
+                AVG(context_relevance)          AS avg_ctx,
+                AVG(faithfulness)               AS avg_faith,
+                AVG(answer_relevance)           AS avg_ans,
+                AVG(latency_ms)                 AS avg_lat,
+                AVG(llm_score)                  AS avg_score
+            FROM eval_records
+            """
+        ).fetchone()
 
-    def _avg(key):
-        vals = [getattr(r, key) for r in _eval_log if getattr(r, key) is not None]
-        return round(float(np.mean(vals)), 4) if vals else None
+        total = row["total"]
+        if total == 0:
+            return {"total_evaluations": 0, "message": "No evaluations logged yet."}
 
-    return {
-        "total_evaluations": len(_eval_log),
-        "avg_context_relevance": _avg("context_relevance"),
-        "avg_faithfulness": _avg("faithfulness"),
-        "avg_answer_relevance": _avg("answer_relevance"),
-        "avg_latency_ms": _avg("latency_ms"),
-        "avg_llm_score": _avg("llm_score"),
-        "latest": _eval_log[-1].to_dict() if _eval_log else None,
-    }
+        # Fetch the most recent record for the "latest" field
+        latest_row = conn.execute(
+            """
+            SELECT * FROM eval_records ORDER BY timestamp DESC LIMIT 1
+            """
+        ).fetchone()
+
+        latest = dict(latest_row) if latest_row else None
+
+        return {
+            "total_evaluations":    total,
+            "avg_context_relevance": round(row["avg_ctx"],   4) if row["avg_ctx"]   is not None else None,
+            "avg_faithfulness":      round(row["avg_faith"], 4) if row["avg_faith"] is not None else None,
+            "avg_answer_relevance":  round(row["avg_ans"],   4) if row["avg_ans"]   is not None else None,
+            "avg_latency_ms":        round(row["avg_lat"],   2) if row["avg_lat"]   is not None else None,
+            "avg_llm_score":         round(row["avg_score"], 4) if row["avg_score"] is not None else None,
+            "latest": latest,
+        }
+    finally:
+        conn.close()
 
 
 def get_eval_history(limit: int = 50) -> list[dict]:
-    """Return the most recent `limit` eval records as dicts."""
-    return [r.to_dict() for r in _eval_log[-limit:]]    
+    """
+    Return the most recent `limit` eval records as dicts, newest first.
+    Capped at MAX_HISTORY to keep response sizes sane.
+    """
+    limit = min(limit, MAX_HISTORY)
+    conn = _get_conn()
+    try:
+        rows = conn.execute(
+            """
+            SELECT * FROM eval_records
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
