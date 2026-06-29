@@ -24,7 +24,7 @@ jobs:
       - run: pip install -r requirements.txt pytest pytest-cov pytest-asyncio httpx
       - run: pytest tests/ --cov=backend --cov-report=xml -v 2>/dev/null || echo "No tests yet"
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY_TEST }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY_TEST}}
 
   # ── 2. Build & push backend ────────────────────────────────────────────────
   build-backend:
@@ -94,7 +94,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region:            ${{ env.AWS_REGION }}
       - name: Patch account ID
-        run: sed -i "s/YOUR_ACCOUNT_ID/${{ secrets.AWS_ACCOUNT_ID }}/g" aws/task-definitions/backend.json
+        run: sed -i "s/YOUR_ACCOUNT_ID/${{ secrets.AWS_ACCESS_KEY_ID }}/g" aws/task-definitions/backend.json
       - name: Render task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
@@ -124,7 +124,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region:            ${{ env.AWS_REGION }}
       - name: Patch account ID
-        run: sed -i "s/YOUR_ACCOUNT_ID/${{ secrets.AWS_ACCOUNT_ID }}/g" aws/task-definitions/frontend.json
+        run: sed -i "s/YOUR_ACCOUNT_ID/${{ secrets.AWS_ACCESS_KEY_ID }}/g" aws/task-definitions/frontend.json
       - name: Render task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
