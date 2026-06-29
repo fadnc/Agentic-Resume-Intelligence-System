@@ -1,14 +1,43 @@
+#  Core framework 
 fastapi
 uvicorn[standard]
 python-multipart
+pydantic
+
+#  Agent graph
+langgraph==0.2.28
+langchain-core==0.3.15
+
+#  LLM
+groq
+
+#  Embeddings + vector search 
 sentence-transformers==2.7.0
 transformers==4.41.0
 faiss-cpu
-pydantic
-boto3
-python-dotenv
+
+#  PDF parsing
 pymupdf
-groq
+
+#  JD scraper
+requests
+beautifulsoup4
+playwright                # pip install playwright && playwright install chromium
+
+#  ML tracking
+mlflow
+
+#  Monitoring
+prometheus-client
+
+#  Frontend
 flask
 gunicorn
-requests
+
+#  Infra
+boto3
+python-dotenv
+
+#  Numeric
+numpy
+torch
