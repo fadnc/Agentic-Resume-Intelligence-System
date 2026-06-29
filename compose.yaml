@@ -1,11 +1,85 @@
 version: "3.9"
 
 services:
+  #  FastAPI backend 
   backend:
     build: .
-    container_name: resume-ai-backend
+    container_name: dis-v7-backend
     ports:
       - "8000:8000"
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
-    restart: always
+      - MLFLOW_TRACKING_URI=http://mlflow:5001
+      - USE_SAGEMAKER=false
+    volumes:
+      - embeddings_data:/app/embeddings_store
+      - eval_data:/app/eval_log.db
+    depends_on:
+      - mlflow
+    restart: unless-stopped
+
+  #  Flask frontend 
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: dis-v7-frontend
+    ports:
+      - "5000:5000"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  #  MLflow tracking 
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.13.0
+    container_name: dis-v7-mlflow
+    ports:
+      - "5001:5001"
+    command: >
+      mlflow server
+      --host 0.0.0.0 --port 5001
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow
+    restart: unless-stopped
+
+  #  Prometheus 
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: dis-v7-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    restart: unless-stopped
+
+  #  Grafana 
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: dis-v7-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  embeddings_data:
+  eval_data:
+  mlflow_data:
+  prometheus_data:
+  grafana_data:
