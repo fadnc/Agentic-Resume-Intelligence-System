@@ -23,10 +23,6 @@
           "valueFrom": "arn:aws:secretsmanager:ap-south-1:855250841305:secret:dis-v7/groq-api-key"
         }
       ],
-      "mountPoints": [
-        { "sourceVolume": "embeddings", "containerPath": "/app/embeddings_store" },
-        { "sourceVolume": "evaldb",     "containerPath": "/app/eval_log.db" }
-      ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
