@@ -15,9 +15,14 @@ RUN playwright install chromium --with-deps
 
 COPY backend/ ./backend/
 COPY knowledge_base/ ./knowledge_base/
+COPY init_kb.py .
 
 # Pre-download embedding model so cold starts are fast
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
+# Bake the FAISS knowledge-base indexes directly into the image so the
+# container never depends on a writable runtime volume to build them.
+RUN python init_kb.py
 
 EXPOSE 8000
 
