@@ -1,0 +1,30 @@
+{
+  "family": "dis-v7-grafana",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::855250841305:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "grafana",
+      "image": "grafana/grafana:10.4.0",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 3000, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "GF_SECURITY_ADMIN_PASSWORD", "value": "admin" },
+        { "name": "GF_USERS_ALLOW_SIGN_UP",     "value": "false" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/dis-v7/grafana",
+          "awslogs-region":        "ap-south-1",
+          "awslogs-stream-prefix": "grafana"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "family": "dis-v7-frontend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::855250841305:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "frontend",
+      "image": "855250841305.dkr.ecr.ap-south-1.amazonaws.com/dis-v7-frontend:latest",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 5000, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "BACKEND_URL", "value": "https://eugene-coast-patients-collections.trycloudflare.com" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/dis-v7/frontend",
+          "awslogs-region":        "ap-south-1",
+          "awslogs-stream-prefix": "frontend"
+        }
+      },
+      "healthCheck": {
+        "command":     ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"],
+        "interval":    30,
+        "timeout":     10,
+        "retries":     3,
+        "startPeriod": 30
+      }
+    },
+    {
+      "name": "cloudflared-frontend",
+      "image": "cloudflare/cloudflared:latest",
+      "essential": false,
+      "command": [
+        "tunnel", "--no-autoupdate", "run",
+        "--url", "http://localhost:5000",
+        "--protocol", "http2"
+      ],
+      "dependsOn": [
+        { "containerName": "frontend", "condition": "HEALTHY" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/dis-v7/frontend",
+          "awslogs-region":        "ap-south-1",
+          "awslogs-stream-prefix": "cloudflared"
+        }
+      }
+    }
+  ]
+}

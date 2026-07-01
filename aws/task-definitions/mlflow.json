@@ -1,0 +1,33 @@
+{
+  "family": "dis-v7-mlflow",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::855250841305:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "mlflow",
+      "image": "ghcr.io/mlflow/mlflow:v2.13.0",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 5001, "protocol": "tcp" }
+      ],
+      "command": [
+        "mlflow", "server",
+        "--host", "0.0.0.0",
+        "--port", "5001",
+        "--backend-store-uri", "sqlite:////tmp/mlflow.db",
+        "--default-artifact-root", "/tmp/mlflow-artifacts"
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/dis-v7/mlflow",
+          "awslogs-region":        "ap-south-1",
+          "awslogs-stream-prefix": "mlflow"
+        }
+      }
+    }
+  ]
+}
