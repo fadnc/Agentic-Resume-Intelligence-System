@@ -7,9 +7,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-7.0.0-red.svg)
 
-A production-grade AI system that semantically matches resumes to job descriptions using a **multi-agent LangGraph pipeline**, persistent 4-corpus RAG knowledge base, and RAGAS-style retrieval evaluation. Deployed on AWS ECS Fargate with CI/CD via GitHub Actions and Cloudflare Tunnel for stable public access.
-
-**Live API:** `https://eugene-coast-patients-collections.trycloudflare.com/docs`
+A production-grade AI system that semantically matches resumes to job descriptions using a **multi-agent LangGraph pipeline**, persistent 4-corpus RAG knowledge base, and RAGAS-style retrieval evaluation. Deployed on AWS ECS Fargate with CI/CD via GitHub Actions.
 
 ---
 
