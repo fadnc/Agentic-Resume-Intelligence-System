@@ -1,91 +1,59 @@
-# backend/services/llm.py
+"""
+backend/services/llm.py — v7
+Groq dispatcher unchanged from v3.
+Added: temperature and max_tokens params so agents can control output.
+"""
 import json
-import re
-import os
+import logging
 from backend.config import USE_SAGEMAKER, GROQ_API_KEY, USE_GROQ
 
-def call_groq_llm(prompt: str):
-    """Call Groq API for fast, reliable JSON generation"""
+logger = logging.getLogger("resume-ai")
+
+
+def call_groq_llm(
+    prompt: str,
+    system: str = "You are a helpful assistant.",
+    temperature: float = 0.3,
+    max_tokens: int = 1000,
+) -> str:
+    """Call Groq API. Returns raw text string (agents handle JSON parsing)."""
     from groq import Groq
-    
     client = Groq(api_key=GROQ_API_KEY)
-    
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",  # Fast and accurate
-            messages=[
-                {
-                    "role": "system",
-                    "content": """You are an expert resume analyzer and ATS evaluator. 
-You MUST respond with ONLY valid JSON in the exact format specified. 
-No additional text, explanations, or markdown - just pure JSON."""
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.3,
-            max_tokens=800,
-            response_format={"type": "json_object"}  # Force JSON output
-        )
-        
-        output = response.choices[0].message.content
-        print(f"[DEBUG] Groq Output: {output[:200]}...")
-        
-        # Parse JSON
-        result = json.loads(output)
-        
-        # Validate structure
-        required_keys = ["score", "missing_skills", "suggestions", "rewritten_bullets"]
-        if all(key in result for key in required_keys):
-            print(f"[DEBUG] Successfully parsed result with score: {result.get('score')}")
-            return result
-        else:
-            print(f"[WARNING] Missing required keys in response")
-            return {
-                "score": result.get("score", 0),
-                "missing_skills": result.get("missing_skills", []),
-                "suggestions": result.get("suggestions", ["Incomplete response from AI"]),
-                "rewritten_bullets": result.get("rewritten_bullets", [])
-            }
-        
-    except json.JSONDecodeError as e:
-        print(f"[ERROR] JSON Parse Error: {e}")
-        print(f"[ERROR] Raw output: {output}")
-        return {
-            "score": 0,
-            "missing_skills": [],
-            "suggestions": ["AI generated invalid JSON response"],
-            "rewritten_bullets": []
-        }
-    except Exception as e:
-        print(f"[ERROR] Groq API Error: {e}")
-        return {
-            "score": 0,
-            "missing_skills": [],
-            "suggestions": [f"API Error: {str(e)[:100]}"],
-            "rewritten_bullets": []
-        }
 
-def call_local_llm(prompt: str):
-    """Fallback local model (kept for compatibility)"""
-    print("[WARNING] Using fallback local model - install Groq for better results")
-    return {
-        "score": 0,
-        "missing_skills": ["Groq API key not configured"],
-        "suggestions": [
-            "Add GROQ_API_KEY to your .env file",
-            "Get free API key from https://console.groq.com/keys"
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": prompt},
         ],
-        "rewritten_bullets": []
-    }
+        temperature=temperature,
+        max_tokens=max_tokens,
+        response_format={"type": "json_object"},
+    )
+    output = response.choices[0].message.content
+    logger.debug(f"[llm] Groq response preview: {output[:120]}")
+    return output
 
-def call_llm(prompt: str):
-    """Main LLM dispatcher"""
+
+def call_local_llm(prompt: str, **kwargs) -> str:
+    logger.warning("[llm] Fallback: GROQ_API_KEY not set.")
+    return json.dumps({
+        "score": 0,
+        "missing_skills": ["GROQ_API_KEY not configured"],
+        "suggestions": ["Add GROQ_API_KEY to .env — get free key at console.groq.com"],
+        "rewritten_bullets": [],
+    })
+
+
+def call_llm(
+    prompt: str,
+    system: str = "You are a helpful assistant.",
+    temperature: float = 0.3,
+    max_tokens: int = 1000,
+) -> str:
+    """Main dispatcher — agents call this."""
     if USE_SAGEMAKER:
-        raise NotImplementedError("SageMaker integration not yet implemented")
-    elif USE_GROQ:
-        return call_groq_llm(prompt)
-    else:
-        return call_local_llm(prompt)
+        raise NotImplementedError("SageMaker routing not yet implemented for agent calls.")
+    if USE_GROQ:
+        return call_groq_llm(prompt, system=system, temperature=temperature, max_tokens=max_tokens)
+    return call_local_llm(prompt)

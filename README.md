@@ -1,252 +1,186 @@
-# Document Intelligence System — LLM RAG
-
-**Intelligent Resume-Job Matching with Real RAG Architecture + RAGAS-style Eval**
+# Document Intelligence System v7
+### Intelligent Resume–Job Matching · LangGraph Agents · Multi-Corpus RAG · AWS ECS
 
 ![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-green.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)
+![LangGraph](https://img.shields.io/badge/LangGraph-0.2.28-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-3.0.0-red.svg)
+![Version](https://img.shields.io/badge/version-7.0.0-red.svg)
 
-A production-grade AI system that semantically matches resumes to job descriptions using a true multi-corpus RAG pipeline, vector embeddings, and large language models. Provides quantitative match scoring, skills-gap analysis, ATS-optimized bullet rewrites, and RAGAS-style retrieval quality metrics — all grounded in a persistent 4-corpus knowledge base.
-
----
-
-## Table of Contents
-
-- [What's New in v3](#whats-new-in-v3)
-- [System Architecture](#system-architecture)
-- [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
-- [Installation](#installation)
-- [Usage](#usage)
-- [API Reference](#api-reference)
-- [Evaluation Framework](#evaluation-framework)
-- [Performance](#performance)
-- [Configuration](#configuration)
-- [Contributing](#contributing)
-- [License](#license)
+A production-grade AI system that semantically matches resumes to job descriptions using a **multi-agent LangGraph pipeline**, persistent 4-corpus RAG knowledge base, and RAGAS-style retrieval evaluation. Deployed on AWS ECS Fargate with CI/CD via GitHub Actions.
 
 ---
 
-## What's New in v3
+## What's New in v7
 
-Version 3 addresses the core architectural limitation of v2 (single-document retrieval) by introducing a persistent external knowledge base and a RAGAS-style evaluation framework.
-
-| Dimension | v2 (Before) | v3 (Now) |
+| Dimension | v3 (Before) | v7 (Now) |
 |-----------|-------------|----------|
-| Retrieval corpus | Resume only (single doc) | Resume + 4 persistent KB corpora |
-| Knowledge base | None | Job market data, resume examples, ATS keywords, hiring rubrics |
-| RAG definition | Context selection only | True external knowledge augmentation |
-| Eval framework | None | RAGAS-style: context relevance, faithfulness, answer relevance |
-| Eval endpoints | None | `/eval/metrics`, `/eval/history`, `/eval/corpus/stats` |
-| Prompt grounding | Resume + JD only | Resume + JD + 4 KB contexts |
-| Corpus persistence | N/A | FAISS indexes built once, loaded from disk on restart |
+| Orchestration | Single `pipeline.py` call | LangGraph `StateGraph` — 5 nodes, conditional routing |
+| Agents | None | 4 specialized agents: parser, jd_analyst, gap_analyst, rewriter |
+| JD input | Raw text only | Raw text **or** URL (LinkedIn / Naukri scraper) |
+| Gap analysis | Cosine similarity only | Embeddings + LLM reasoning grounded in hiring_criteria KB |
+| Rewriter | Generic suggestions | Bullet-level rewrites grounded in resume_examples KB |
+| Response | score + missing_skills | + matched_skills, gap_summary, tailored_summary, quick_wins, agent_trace |
+| Deployment | Render free tier | AWS ECS Fargate — 4 independent services |
+| Observability | In-memory metrics | MLflow experiment tracking + Grafana dashboards |
+| CI/CD | None | GitHub Actions — test → Docker build → ECR push → ECS deploy |
+| Public access | IP-based | Cloudflare Tunnel — stable HTTPS URL, no load balancer cost |
 
 ---
 
-## System Architecture
+## Architecture
 
-### RAG Pipeline
-
-Each analysis performs dual retrieval before calling the LLM:
+### Agent Graph (LangGraph StateGraph)
 
 ```
-┌─────────────────┐
-│   Streamlit UI  │
-└────────┬────────┘
-         │ HTTP/REST
-         ▼
-┌─────────────────┐
-│     FastAPI     │
-└────────┬────────┘
-         │
-    ┌────┴──────────────────────────────────┐
-    ▼                                       ▼
-┌──────────────────────┐     ┌─────────────────────────────┐
-│   Resume Index       │     │   Knowledge Base (4 corpora) │
-│   (per-request FAISS)│     │   job_market                 │
-│                      │     │   resume_examples            │
-│   PDF → chunks →     │     │   ats_keywords               │
-│   embeddings → index │     │   hiring_criteria            │
-└──────────┬───────────┘     └──────────────┬──────────────┘
-           │                                │
-           └──────────────┬─────────────────┘
-                          ▼
-              ┌───────────────────────┐
-              │  Merged Context Prompt│
-              │  + RAGAS Eval Metrics │
-              └───────────┬───────────┘
-                          ▼
-              ┌───────────────────────┐
-              │  Groq API             │
-              │  Llama-3.3-70B        │
-              └───────────────────────┘
+Input (PDF resume + JD text or URL)
+          │
+          ▼
+   scrape_jd node ──── optional: Playwright/BS4 scraper
+          │
+          ▼
+   retrieval node ──── dual FAISS search:
+          │              top-3 resume chunks + top-2 per KB corpus (8 KB chunks)
+          ▼
+   parser agent ─────── extracts skills, experience, education from resume
+          │              grounded in retrieved resume chunks
+          ▼
+   jd_analyst agent ─── ranks must-have vs nice-to-have requirements
+          │              grounded in KB: job_market + ats_keywords
+          ▼
+   gap_analyst agent ── cosine similarity + LLM scoring (0–100)
+          │              grounded in KB: hiring_criteria
+          │
+     score ≥ 30? ──── YES ──► rewriter agent ── tailored bullets + summary
+          │                                       grounded in KB: resume_examples
+          │ NO
+          ▼
+       eval node ─────── RAGAS-style metrics logged to SQLite
+          │
+          ▼
+        END → JSON response
 ```
 
-### Knowledge Base Corpora
+### Knowledge Base (4 Persistent FAISS Corpora)
 
-| Corpus | Contents | Purpose |
+| Corpus | Contents | Used by |
 |--------|----------|---------|
-| `job_market` | Role descriptions, responsibilities, expectations by domain | Calibrate score against real market standards |
-| `resume_examples` | High-scoring bullet examples by domain and seniority | Ground rewritten bullets in proven patterns |
-| `ats_keywords` | Keyword lists per role and tech stack | Surface missing ATS-critical terms |
-| `hiring_criteria` | Rubrics, level definitions, ATS scoring logic, interview signals | Calibrate scoring against how humans evaluate resumes |
+| `job_market` | Role descriptions, responsibilities by domain | jd_analyst |
+| `resume_examples` | High-scoring bullets by domain + seniority | rewriter |
+| `ats_keywords` | Keyword lists per role and tech stack | jd_analyst |
+| `hiring_criteria` | Rubrics, ATS scoring logic, interview signals | gap_analyst |
 
-### Workflow
-
-1. **PDF Parsing** — resume extracted with PyMuPDF via async ThreadPoolExecutor
-2. **Chunking** — 200-word segments with 30-word overlap
-3. **Embedding** — 384-dim normalized vectors via all-MiniLM-L6-v2
-4. **Dual Retrieval** — top-3 resume chunks + top-2 per KB corpus (8 KB chunks total)
-5. **Prompt Assembly** — resume context + JD + 4 KB contexts merged into structured prompt
-6. **LLM Call** — Groq API (Llama-3.3-70B) returns structured JSON
-7. **Eval Scoring** — 3 RAGAS-style metrics computed and logged per inference
-8. **Response** — score, gaps, suggestions, bullets + eval metadata returned
+Indexes are built once at Docker image build time (`RUN python init_kb.py`) and loaded from disk on every startup — no cold-build latency in production.
 
 ---
 
 ## Technology Stack
 
-### Backend
-- **FastAPI** — async web framework with lifespan corpus loading
-- **Python 3.12** — runtime
-- **PyMuPDF (fitz)** — PDF text extraction
-- **Sentence Transformers** (`all-MiniLM-L6-v2`) — 384-dim normalized embeddings
-- **FAISS** — `IndexFlatL2` for resume index, `IndexFlatIP` for KB corpora (cosine on normalized vecs)
-- **Groq SDK** — Llama-3.3-70B-versatile, JSON mode, temperature 0.3
-- **Pydantic** — request/response validation including `EvalMetadata` schema
+### ML & Backend
+- **LangGraph** — agent orchestration with `StateGraph`, shared `ResumeState` TypedDict, conditional routing
+- **FastAPI** — async API with lifespan KB loading, PDF upload, background MLflow logging
+- **Groq API** — `llama-3.3-70b-versatile`, JSON mode, temperature 0.1 for structured outputs
+- **Sentence Transformers** (`all-MiniLM-L6-v2`) — 384-dim normalized embeddings, LRU-cached
+- **FAISS** — `IndexFlatIP` (cosine on normalized vectors) for KB corpora, `IndexFlatL2` for per-request resume index
+- **PyMuPDF** — async PDF extraction via `ThreadPoolExecutor`
+- **Playwright + BeautifulSoup** — JD scraping from LinkedIn, Naukri, and generic URLs
+- **MLflow** — experiment tracking: match score, latency, gap count per inference run
+- **SQLite** — persistent RAGAS-style eval log (context relevance, faithfulness, answer relevance)
 
-### Frontend
-- **Streamlit** — UI with eval dashboard tab, corpus status sidebar, export options
-
-### Infrastructure
-- **Docker** — `python:3.12-slim`, EXPOSE 8080
-- **Docker Compose** — backend service with `GROQ_API_KEY` env injection
-- **Uvicorn** — ASGI server
-- **Amazon SageMaker** — optional inference endpoint (`sagemaker/inference.py`)
+### DevOps & Infrastructure
+- **Docker** — multi-stage build, KB indexes baked in at build time, non-root user
+- **AWS ECS Fargate** — 4 independent services (backend, frontend, MLflow, Grafana)
+- **AWS ECR** — container registry
+- **AWS Secrets Manager** — GROQ_API_KEY injection at runtime
+- **GitHub Actions** — CI/CD: pytest → docker build → ECR push → ECS rolling deploy
+- **Cloudflare Tunnel** — stable public HTTPS without a load balancer
+- **Prometheus + Grafana** — request rate, latency, match score distribution
 
 ---
 
 ## Project Structure
 
 ```
-fadnc-document-intelligence-system--llm-rag/
 ├── backend/
-│   ├── app.py                  # FastAPI app + lifespan corpus loading
-│   ├── config.py               # Env config + KB paths
+│   ├── agents/
+│   │   ├── state.py              # ResumeState TypedDict — shared across all agents
+│   │   ├── graph.py              # LangGraph StateGraph — replaces pipeline.py
+│   │   ├── parser_agent.py       # Extracts skills/exp/edu from resume
+│   │   ├── jd_analyst_agent.py   # Ranks JD requirements, grounded in KB
+│   │   ├── gap_analyst_agent.py  # Cosine sim + LLM scoring, 0–100
+│   │   └── rewriter_agent.py     # Bullet rewrites + tailored summary
+│   ├── tools/
+│   │   ├── retrieval.py          # Wraps v3 dual-retrieval for graph node
+│   │   └── scraper.py            # LinkedIn/Naukri/generic JD scraper
 │   ├── core/
-│   │   ├── logging.py          # Structured logging
-│   │   └── metrics.py          # Request/latency counters
+│   │   ├── logging.py            # Structured logging
+│   │   └── metrics.py            # Request/latency counters
 │   ├── models/
-│   │   ├── prompts.py          # Dual-context prompt template
-│   │   └── schemas.py          # AnalyzeResponse + EvalMetadata
+│   │   ├── schemas.py            # AnalyzeResponse + EvalMetadata (v7 extended)
+│   │   └── prompts.py            # Legacy prompt template (reference)
 │   ├── routes/
-│   │   ├── analyze.py          # POST /analyze
-│   │   ├── health.py           # GET /health, /readiness
-│   │   └── eval.py             # GET /eval/metrics|history|corpus/stats
+│   │   ├── analyze.py            # POST /analyze — invokes agent_graph
+│   │   ├── health.py             # GET /health, /readiness
+│   │   └── eval.py               # GET /eval/metrics|history|corpus/stats
 │   └── services/
-│       ├── corpus_builder.py   # Seed + manage 4 KB FAISS indexes
-│       ├── eval.py             # RAGAS-style metrics engine
-│       ├── pipeline.py         # Main workflow — dual retrieval + eval
-│       ├── retriever.py        # Dual search: resume index + KB
-│       ├── chunker.py          # 200-word chunks, 30-word overlap
-│       ├── embeddings.py       # Lazy-loaded SentenceTransformer
-│       ├── llm.py              # Groq API dispatcher
-│       └── parser.py           # Async PDF extraction
-├── knowledge_base/             # Seed JSONs — place at project root
-│   ├── job_market.json
-│   ├── resume_examples.json
-│   ├── ats_keywords.json
-│   └── hiring_criteria.json
-├── embeddings_store/
-│   ├── faiss_index             # Legacy resume index
-│   ├── meta.npy
-│   └── knowledge_base/         # Persistent KB FAISS indexes (auto-built on first run)
-├── frontend/
-│   └── streamlit_app.py        # UI with eval dashboard tab
-├── sagemaker/
-│   └── inference.py            # SageMaker endpoint (Mistral-7B)
-├── Dockerfile
-├── compose.yaml
-├── requirements.txt
-└── .env                        # GROQ_API_KEY goes here
+│       ├── corpus_builder.py     # 4-corpus FAISS manager, disk persistence
+│       ├── retriever.py          # Dual search: resume index + KB corpora
+│       ├── eval.py               # RAGAS metrics + SQLite persistence
+│       ├── embeddings.py         # Lazy-loaded SentenceTransformer singleton
+│       ├── chunker.py            # 300-word chunks, 50-word overlap
+│       ├── parser.py             # Async PDF extraction via PyMuPDF
+│       └── llm.py                # Groq dispatcher + SageMaker stub
+├── knowledge_base/               # Seed JSONs for 4 KB corpora
+├── flask_frontend/               # Flask UI proxying to backend
+├── sagemaker/                    # Mistral-7B SageMaker endpoint stub
+├── aws/
+│   ├── task-definitions/         # ECS task definitions per service
+│   ├── deploy-all-services.sh    # One-command ECS deploy
+│   └── get-urls-all.sh           # Fetch live IPs for all services
+├── .github/workflows/ci-cd.yml   # GitHub Actions pipeline
+├── docker/
+│   ├── prometheus.yml            # Prometheus scrape config
+│   └── grafana/                  # Grafana datasource provisioning
+├── Dockerfile                    # Multi-stage, KB baked in at build time
+├── Dockerfile.frontend
+├── compose.yaml                  # Local dev: all 6 services
+├── init_kb.py                    # Seeds FAISS indexes from JSON
+└── requirements.txt
 ```
 
 ---
 
-## Installation
-
-### Prerequisites
-
-- Python 3.12+
-- Groq API key — free tier at [console.groq.com](https://console.groq.com)
-- Docker (optional)
-- Minimum 4GB RAM
-
-### Local Setup
+## Local Setup
 
 ```bash
-# 1. Clone
 git clone https://github.com/fadnc/intelligent-resume-job-matching-assistant-llm-rag-sagemaker.git
 cd intelligent-resume-job-matching-assistant-llm-rag-sagemaker
 
-# 2. Virtual environment
 python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-
-# 3. Install dependencies
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+playwright install chromium     # for JD URL scraping
 
-# 4. Configure environment
-echo "GROQ_API_KEY=gsk_your_key_here" > .env
+cp .env.example .env
+# Add GROQ_API_KEY to .env
+
+python init_kb.py               # Build FAISS indexes once
+uvicorn backend.app:app --reload --port 8000
 ```
 
-### Docker Setup
+### Docker (all services)
 
 ```bash
-# Build and run
-docker build -t resume-analyzer .
-docker run -p 8080:8080 -e GROQ_API_KEY=your_key resume-analyzer
-
-# Or with Docker Compose
-GROQ_API_KEY=your_key docker compose up
+GROQ_API_KEY=your_key docker compose up --build
 ```
 
----
-
-## Usage
-
-### Running Locally
-
-**Terminal 1 — Backend:**
-```bash
-uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-On first run, corpora are auto-built from `knowledge_base/*.json`:
-```
-[startup] Loading knowledge base corpora...
-[corpus_builder] Building corpus: job_market
-[corpus_builder] Building corpus: resume_examples
-[corpus_builder] Building corpus: ats_keywords
-[corpus_builder] Building corpus: hiring_criteria
-[startup] Knowledge base ready.
-```
-Subsequent starts load indexes from disk instantly.
-
-**Terminal 2 — Frontend:**
-```bash
-streamlit run frontend/streamlit_app.py
-```
-Opens at `http://localhost:8501`.
-
-### Example API Request
-
-```bash
-curl -X POST http://localhost:8000/analyze \
-  -F "resume=@path/to/resume.pdf" \
-  -F "job_description=Software Engineer at Acme Corp..."
-```
+| Service | URL |
+|---------|-----|
+| API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+| Frontend | http://localhost:5000 |
+| MLflow | http://localhost:5001 |
+| Grafana | http://localhost:3000 |
 
 ---
 
@@ -254,24 +188,45 @@ curl -X POST http://localhost:8000/analyze \
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/analyze` | Analyze resume vs job description |
+| `POST` | `/analyze` | Full agent pipeline — PDF + JD text or URL |
 | `GET` | `/health` | Liveness check |
-| `GET` | `/readiness` | Readiness — verifies embedding model loaded |
+| `GET` | `/readiness` | Verifies embedding model loaded |
 | `GET` | `/metrics` | Request counts and average latency |
-| `GET` | `/eval/metrics` | Aggregate RAGAS-style metrics across all inferences |
-| `GET` | `/eval/history` | Per-inference eval log (`?limit=50`, max 200) |
-| `GET` | `/eval/corpus/stats` | Loaded corpus doc counts and index types |
+| `GET` | `/eval/metrics` | Aggregate RAGAS-style metrics |
+| `GET` | `/eval/history` | Per-inference eval log |
+| `GET` | `/eval/corpus/stats` | KB corpus doc counts and index types |
 | `GET` | `/docs` | Swagger UI |
-| `GET` | `/redoc` | ReDoc |
 
-### Response Schema — `POST /analyze`
+### Response Schema
 
 ```json
 {
-  "score": 78,
-  "missing_skills": ["Kubernetes", "GraphQL", "CI/CD pipelines"],
-  "suggestions": ["Add quantified metrics...", "Include cloud tech..."],
-  "rewritten_bullets": ["Architected...", "Led...", "Implemented..."],
+  "score": 74,
+  "matched_skills": ["Python", "PyTorch", "FastAPI", "FAISS"],
+  "missing_skills": [
+    { "skill": "AWS", "importance": "critical", "learnable_in_weeks": 4 }
+  ],
+  "gap_summary": "Strong ML fit. Main gap is cloud deployment experience.",
+  "rewritten_bullets": [
+    {
+      "section": "ML Research at Digital University Kerala",
+      "original": "Built models using MIMIC-III data",
+      "rewritten": "Developed and deployed production ML pipelines on MIMIC-III (61K+ ICU stays), achieving AUROC > 0.85 across 6 clinical outcomes",
+      "reason": "JD emphasises production ML pipelines and quantified impact"
+    }
+  ],
+  "tailored_summary": "ML Engineer with experience building...",
+  "improvement_tips": ["Get AWS Cloud Practitioner cert — directly addresses the biggest gap"],
+  "quick_wins": ["Add 'deployed to cloud' to existing project bullets"],
+  "agent_trace": [
+    "[scraper] JD fetched from URL",
+    "[retrieval] 3 resume chunks, 8 KB chunks",
+    "[parser] 12 skills, 2 roles",
+    "[jd_analyst] 5 must-have, 4 nice-to-have, domain=ML Engineering",
+    "[gap_analyst] score=74/100 gaps=1 semantic=0.87",
+    "[rewriter] 3 bullets rewritten, tailored summary generated",
+    "[eval] ctx_rel=0.812 faithful=0.347 ans_rel=0.763"
+  ],
   "eval": {
     "context_relevance": 0.812,
     "faithfulness": 0.347,
@@ -279,94 +234,79 @@ curl -X POST http://localhost:8000/analyze \
     "latency_ms": 4821.3,
     "resume_chunks_used": 3,
     "kb_chunks_used": 8
-  }
+  },
+  "processing_time_ms": 4230.5
 }
+```
+
+---
+
+## Deployment
+
+### AWS ECS Fargate
+
+4 independent Fargate services, each with its own task definition:
+
+```bash
+bash aws/deploy-all-services.sh
+```
+
+CI/CD via GitHub Actions on every push to `main`:
+- pytest with coverage
+- Docker build + push to ECR
+- ECS rolling deploy with task definition patching
+
+### Demo (start/stop)
+
+```bash
+# Start (2 min to be live)
+bash start-for-demo.sh
+
+# Stop (billing pauses immediately)
+bash stop-after-demo.sh
 ```
 
 ---
 
 ## Evaluation Framework
 
-Three RAGAS-style metrics are computed and logged on every inference.
+Three RAGAS-style metrics computed and persisted to SQLite on every inference:
 
-| Metric | What it measures | Method |
-|--------|-----------------|--------|
-| **Context Relevance** | Are retrieved chunks relevant to the job description? | Mean cosine similarity: JD embedding vs all retrieved chunks |
-| **Faithfulness** | Does LLM output stay grounded in retrieved context? | Jaccard token overlap: context vs flattened LLM response |
-| **Answer Relevance** | Is the LLM response relevant to the job description? | Cosine similarity: JD embedding vs response embedding |
-
-Metrics are logged in-memory (capped at 200 records) and exposed via:
-
-```bash
-# Aggregate stats
-GET /eval/metrics
-
-# Per-inference history
-GET /eval/history?limit=50
-
-# Corpus health
-GET /eval/corpus/stats
-```
-
-The Streamlit UI includes a dedicated **📈 Eval Metrics** tab showing per-inference scores and aggregate trends.
+| Metric | Measures | Method |
+|--------|----------|--------|
+| **Context Relevance** | Retrieved chunks vs job description | Mean cosine similarity |
+| **Faithfulness** | LLM output grounded in context | Jaccard token overlap |
+| **Answer Relevance** | Response relevant to job description | Cosine similarity |
 
 ---
 
 ## Performance
 
-| Operation | Duration | Notes |
-|-----------|----------|-------|
-| PDF Parsing | 0.5–2s | Async ThreadPoolExecutor |
-| Embedding Generation | 0.3–1s | 200-word chunks, batch_size=64 |
-| FAISS Resume Search | <0.1s | Top-3, IndexFlatL2 |
-| FAISS KB Search | <0.1s | Top-2 per corpus × 4, IndexFlatIP |
-| LLM Generation | 2–5s | Groq API, JSON mode |
-| Eval Metric Computation | <0.2s | Cosine + Jaccard, in-process |
-| **Total Analysis** | **3–8s** | End-to-end |
-
-### Optimization Notes
-
-- **Float32 precision** — reduces embedding memory vs float64
-- **LRU cache** (`maxsize=100`) — caches JD embeddings, avoids re-embedding repeated queries
-- **Lazy model loading** — SentenceTransformer loaded once on first request via singleton
-- **KB index persistence** — corpora built once from JSON, reloaded from disk on restart
-- **Context budgets** — 1500 chars resume, 1000 chars JD, 600 chars per KB corpus
+| Operation | Duration |
+|-----------|----------|
+| PDF parsing | 0.5–2s |
+| Embedding + FAISS search | 0.3–1s |
+| LLM generation (4 agent calls) | 6–12s |
+| RAGAS eval computation | <0.2s |
+| **Total end-to-end** | **7–15s** |
 
 ---
 
 ## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GROQ_API_KEY` | — | **Required.** Groq API key from console.groq.com |
-| `EMBED_MODEL` | `all-MiniLM-L6-v2` | Sentence transformer model |
-| `USE_SAGEMAKER` | `False` | Route LLM calls to SageMaker endpoint |
-| `SAGEMAKER_ENDPOINT` | `""` | SageMaker endpoint name if `USE_SAGEMAKER=True` |
-| `BACKEND_URL` | `http://localhost:8000` | Frontend → backend URL (Streamlit env var) |
-
----
-Deployment-ready for AWS ECS Fargate (see deploy.sh). Currently hosted on Render free tier.
----
-
-## Contributing
-
-Contributions are welcome. Areas of interest:
-
-- Expanding knowledge base corpora with more domains and seniority levels
-- Replacing Jaccard faithfulness with NLI-based entailment scoring
-- Adding ground-truth eval datasets for offline benchmark runs
-- Multi-language resume support
-- PDF export of analysis results
-- Unit and integration test coverage
-
-Standard workflow: fork → feature branch → commit → pull request.
+| Variable | Description |
+|----------|-------------|
+| `GROQ_API_KEY` | Required. Get free key at console.groq.com |
+| `MLFLOW_TRACKING_URI` | MLflow server URL (default: http://localhost:5001) |
+| `USE_SAGEMAKER` | Route LLM to SageMaker endpoint (default: false) |
+| `SAGEMAKER_ENDPOINT` | SageMaker endpoint name |
 
 ---
 
 ## License
 
-Licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
-**Author:** Fadhil Muhammed N C  
-**Repository:** [github.com/fadnc/intelligent-resume-job-matching-assistant-llm-rag-sagemaker](https://github.com/fadnc/intelligent-resume-job-matching-assistant-llm-rag-sagemaker)  
-**Version:** 3.0.0 · March 2026 · Production Ready
+**Author:** Fadhil Muhammed N C · [linkedin.com/in/fadhilmuhd](https://linkedin.com/in/fadhilmuhd) · [github.com/fadnc](https://github.com/fadnc)
+
+**Version:** 7.0.0 · July 2026

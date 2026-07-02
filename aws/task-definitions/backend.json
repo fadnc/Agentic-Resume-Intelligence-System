@@ -1,0 +1,64 @@
+{
+  "family": "dis-v7-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::855250841305:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "855250841305.dkr.ecr.ap-south-1.amazonaws.com/dis-v7-backend:latest",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 8000, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "USE_SAGEMAKER",       "value": "false" },
+        { "name": "MLFLOW_TRACKING_URI", "value": "http://localhost:5001" }
+      ],
+      "secrets": [
+        {
+          "name": "GROQ_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:855250841305:secret:dis-v7/groq-api-key"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/dis-v7/backend",
+          "awslogs-region":        "ap-south-1",
+          "awslogs-stream-prefix": "backend"
+        }
+      },
+      "healthCheck": {
+        "command":     ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
+        "interval":    30,
+        "timeout":     10,
+        "retries":     3,
+        "startPeriod": 60
+      }
+    },
+    {
+      "name": "cloudflared-backend",
+      "image": "cloudflare/cloudflared:latest",
+      "essential": false,
+      "command": [
+        "tunnel",
+        "--no-autoupdate",
+        "--url", "http://localhost:8000"
+      ],
+      "dependsOn": [
+        { "containerName": "backend", "condition": "HEALTHY" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/dis-v7/backend",
+          "awslogs-region":        "ap-south-1",
+          "awslogs-stream-prefix": "cloudflared"
+        }
+      }
+    }
+  ]
+}
