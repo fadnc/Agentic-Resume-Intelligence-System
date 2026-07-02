@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Document Intelligence System — v7",
+    title="Resume Intelligence System — v7",
     description="Multi-agent resume analysis: LangGraph agents + 4-corpus RAG + RAGAS eval",
     version="7.0.0",
     lifespan=lifespan,
@@ -68,7 +68,7 @@ async def add_metrics(request: Request, call_next):
 
 @app.get("/")
 def root():
-    return {"message": "Document Intelligence System v7 — LangGraph + RAG"}
+    return {"message": "Resume Intelligence System v7 — LangGraph + RAG"}
 
 
 @app.get("/metrics")
