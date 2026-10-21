@@ -5,7 +5,7 @@ Dual retrieval:
   1. Resume index   — per-request FAISS index built from the uploaded resume
   2. Knowledge base — persistent multi-corpus index via corpus_builder
 
-Resume indexes are keyed by MD5 hash of resume text and cached in memory.
+Resume indexes are keyed by SHA-256 of resume text and kept in a bounded memory cache.
 """
 
 import faiss
@@ -13,24 +13,35 @@ import hashlib
 import threading
 import numpy as np
 import logging
+from collections import OrderedDict
 from backend.services.corpus_builder import search_all_corpora
 
 logger = logging.getLogger("resume-ai")
 
 # ── resume index cache ─────────────────────────────────────────────────────────
 
-_INDEX_CACHE: dict[str, tuple[faiss.Index, list[str]]] = {}
+_INDEX_CACHE: OrderedDict[str, tuple[faiss.Index, list[str]]] = OrderedDict()
+_MAX_RESUME_INDEXES = 32
 _lock = threading.Lock()
 
 
 def hash_text(text: str) -> str:
-    return hashlib.md5(text.encode()).hexdigest()
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def cached_resume_index_key(resume_text: str) -> str | None:
+    key = hash_text(resume_text)
+    with _lock:
+        if key not in _INDEX_CACHE:
+            return None
+        _INDEX_CACHE.move_to_end(key)
+        return key
 
 
 def create_index(vectors: np.ndarray, chunks: list[str], resume_text: str) -> str:
     """
     Build (or retrieve cached) FAISS index for a resume.
-    Returns the cache key (MD5 of resume text).
+    Returns the cache key (SHA-256 of resume text).
     """
     key = hash_text(resume_text)
 
@@ -42,6 +53,9 @@ def create_index(vectors: np.ndarray, chunks: list[str], resume_text: str) -> st
         index = faiss.IndexFlatL2(dim)
         index.add(vectors)
         _INDEX_CACHE[key] = (index, chunks)
+        _INDEX_CACHE.move_to_end(key)
+        while len(_INDEX_CACHE) > _MAX_RESUME_INDEXES:
+            _INDEX_CACHE.popitem(last=False)
         logger.debug(f"[retriever] Created resume index key={key[:8]} chunks={len(chunks)}")
 
     return key
@@ -53,7 +67,9 @@ def search_resume(
     k: int = 3
 ) -> list[str]:
     """Top-k chunks from the resume index."""
-    index, chunks = _INDEX_CACHE[key]
+    with _lock:
+        index, chunks = _INDEX_CACHE[key]
+        _INDEX_CACHE.move_to_end(key)
     k = min(k, len(chunks))
     distances, indices = index.search(query_vec.reshape(1, -1), k)
     return [chunks[i] for i in indices[0]]

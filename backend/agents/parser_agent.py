@@ -41,6 +41,16 @@ Return ONLY valid JSON, no markdown fences:
       "bullets": ["bullet points"]
     }}
   ],
+  "projects": [
+    {{
+      "name": "project name",
+      "technologies": ["tools and technologies stated in the resume"],
+      "duration": "time period or null",
+      "description": "short description or null",
+      "bullets": ["project accomplishments and details from the resume"],
+      "url": "project URL or null"
+    }}
+  ],
   "education": [
     {{
       "degree": "string",
@@ -52,6 +62,10 @@ Return ONLY valid JSON, no markdown fences:
   "summary": "string or null",
   "certifications": ["list or empty array"]
 }}
+
+Extract every project listed in the resume, including its original name, technologies,
+description, accomplishment bullets, dates, and URL when present. Keep facts grounded
+in the resume; use empty arrays or null for details that are not provided.
 """
 
 
@@ -63,7 +77,9 @@ def parser_agent(state: ResumeState) -> ResumeState:
     chunks_preview = "\n".join((state.get("resume_chunks") or [])[:3])
 
     prompt = PARSER_PROMPT.format(
-        resume_text=untrusted_block(resume_text[:3000]),
+        # Include the full guarded resume so sections near the end (often Projects)
+        # are not silently lost before the model extracts structured fields.
+        resume_text=untrusted_block(resume_text[:50_000]),
         resume_chunks=untrusted_block(chunks_preview),
     )
     raw = call_llm(

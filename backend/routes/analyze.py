@@ -11,7 +11,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Background
 from typing import Optional
 
 from backend.agents.graph import agent_graph
-from backend.services.parser import extract_text_from_pdf
+from backend.services.parser import extract_text_from_pdf, extract_resume_style
 from backend.services.mlflow_tracking import log_analysis_run
 from backend.models.schemas import AnalyzeResponse
 from backend.security.input_guard import (
@@ -21,6 +21,11 @@ from backend.security.input_guard import (
     check_untrusted_text,
 )
 from backend.services.evidence import build_requirement_evidence
+from backend.services.analysis_cache import (
+    cache_analysis,
+    get_cached_analysis,
+    make_analysis_cache_key,
+)
 
 router = APIRouter()
 logger = logging.getLogger("resume-ai")
@@ -46,15 +51,7 @@ async def analyze(
         raise HTTPException(status_code=413, detail="Resume PDF must be 10 MB or smaller.")
     if not file_bytes.startswith(b"%PDF-"):
         raise HTTPException(status_code=422, detail="The uploaded file is not a valid PDF.")
-    resume_text = await extract_text_from_pdf(file_bytes)
-
-    if not resume_text.strip():
-        raise HTTPException(status_code=422, detail="Could not extract text from PDF.")
-
     try:
-        resume_text = check_untrusted_text(
-            resume_text, label="Resume text", max_chars=MAX_RESUME_TEXT_CHARS
-        )
         job_description = check_untrusted_text(
             job_description, label="Job description", max_chars=MAX_JOB_DESCRIPTION_CHARS
         )
@@ -62,6 +59,38 @@ async def analyze(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     start = time.time()
+    # URL sourced JDs may change between requests, so only cache pasted JDs.
+    cache_key = make_analysis_cache_key(file_bytes, job_description) if not jd_url else None
+    cached_response = get_cached_analysis(cache_key) if cache_key else None
+    if cached_response is not None:
+        elapsed_ms = (time.time() - start) * 1000
+        cached_eval = cached_response.get("eval") or {}
+        background_tasks.add_task(
+            log_analysis_run,
+            elapsed_ms,
+            jd_url_provided=False,
+            status="success",
+            match_score=cached_response.get("score"),
+            missing_skill_count=len(cached_response.get("missing_skills") or []),
+            matched_skill_count=len(cached_response.get("matched_skills") or []),
+            resume_chunk_count=cached_eval.get("resume_chunks_used", 0),
+            kb_chunk_count=cached_eval.get("kb_chunks_used", 0),
+            eval_metrics=cached_eval,
+        )
+        logger.info("[analyze] exact resume/JD cache hit")
+        return AnalyzeResponse.model_validate(cached_response).model_copy(
+            update={"processing_time_ms": round(elapsed_ms, 1)}
+        )
+
+    resume_text = await extract_text_from_pdf(file_bytes)
+    if not resume_text.strip():
+        raise HTTPException(status_code=422, detail="Could not extract text from PDF.")
+    try:
+        resume_text = check_untrusted_text(
+            resume_text, label="Resume text", max_chars=MAX_RESUME_TEXT_CHARS
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     initial_state = {
         "resume_text":      resume_text,
@@ -106,6 +135,16 @@ async def analyze(
                 status_code=502,
                 detail="Could not connect to the Groq API. Check network access from the backend and retry.",
             ) from exc
+        if getattr(exc, "status_code", None) == 429 or exc.__class__.__name__ == "RateLimitError":
+            response = getattr(exc, "response", None)
+            retry_after = (getattr(response, "headers", {}) or {}).get("retry-after")
+            retry_after = str(retry_after) if retry_after is not None else ""
+            headers = {"Retry-After": retry_after} if retry_after.isdigit() else None
+            raise HTTPException(
+                status_code=429,
+                detail="Groq rate limit reached. Wait briefly, then retry the analysis.",
+                headers=headers,
+            ) from exc
         raise
 
     elapsed_ms = (time.time() - start) * 1000
@@ -120,6 +159,11 @@ async def analyze(
     }
 
     if result.get("error"):
+        logger.error(
+            "[analyze] graph returned error=%r; agent_trace=%s",
+            result["error"],
+            " -> ".join(result.get("messages") or []),
+        )
         log_analysis_run(
             elapsed_ms,
             jd_url_provided=bool(jd_url),
@@ -137,7 +181,13 @@ async def analyze(
     )
 
     # v3-compatible response shape + v7 extras
-    return AnalyzeResponse(
+    tailored_resume = result.get("tailored_resume") or result.get("parsed_resume") or {}
+    try:
+        tailored_resume = {**tailored_resume, "style": extract_resume_style(file_bytes)}
+    except Exception:
+        logger.exception("[analyze] could not read PDF color styling; using export defaults")
+
+    response = AnalyzeResponse(
         score=result.get("match_score") or 0,
         missing_skills=[
             m["skill"] if isinstance(m, dict) else m
@@ -152,7 +202,7 @@ async def analyze(
         matched_skills=result.get("matched_skills") or [],
         gap_summary=result.get("gap_summary") or "",
         tailored_summary=result.get("tailored_summary") or "",
-        tailored_resume=result.get("tailored_resume") or result.get("parsed_resume") or {},
+        tailored_resume=tailored_resume,
         interview_questions=result.get("interview_questions") or [],
         requirement_evidence=build_requirement_evidence(
             resume_text, result.get("parsed_jd") or {}
@@ -163,3 +213,6 @@ async def analyze(
         eval=result.get("eval_metadata"),
         processing_time_ms=round(elapsed_ms, 1),
     )
+    if cache_key:
+        cache_analysis(cache_key, response.model_dump())
+    return response

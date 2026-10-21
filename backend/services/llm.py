@@ -18,7 +18,9 @@ def call_groq_llm(
 ) -> str:
     """Call Groq API. Returns raw text string (agents handle JSON parsing)."""
     from groq import Groq
-    client = Groq(api_key=GROQ_API_KEY)
+    # Do not let SDK backoff hold an analysis open for 18+ seconds on rate
+    # limits; the route maps 429 to a clear, retryable API response.
+    client = Groq(api_key=GROQ_API_KEY, max_retries=0)
 
     request = {
         "model": "openai/gpt-oss-120b",
@@ -39,6 +41,14 @@ def call_groq_llm(
             response_format={"type": "json_object"},
         )
     except Exception as exc:
+        response_obj = getattr(exc, "response", None)
+        response_headers = getattr(response_obj, "headers", {}) or {}
+        logger.warning(
+            "[llm] Groq request failed status=%s code=%s request_id=%s",
+            getattr(exc, "status_code", "unknown"),
+            getattr(exc, "code", None) or type(exc).__name__,
+            response_headers.get("x-request-id"),
+        )
         # Groq occasionally returns json_validate_failed with an empty generation
         # for gpt-oss even when the prompt requests valid JSON. Retry once without
         # constrained decoding; the agent's JSON parser validates the returned text.

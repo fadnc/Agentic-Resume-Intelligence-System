@@ -704,9 +704,9 @@
   <style>
     /* Resume Match floating dashboard refresh. --lime stays the primary accent name. */
     :root,[data-theme="dark"]{--black:#080b10;--ink:#0d1117;--ink-2:#111720;--ink-3:#161e2e;--border:#1c2538;--border-2:#243048;--lime:#b8ff3e;--lime-dim:#7ab022;--lime-glow:rgba(var(--accent-rgb),.18);--cyan:#ff9a1f;--red:#ff4757;--amber:#ffb830;--text-1:#f4f8ff;--text-2:#9aabc3;--text-3:#71819a;--nav-bg:transparent;--backdrop:#dce3d6;--shell:#05080c;--on-accent:#080b10;--accent-rgb:184,255,62;--shadow-shell:0 40px 60px -30px rgba(40,70,20,.45);--mark-bg:var(--lime);--mark-fg:#080b10}
-    [data-theme="light"]{--black:#dce5fb;--shell:#fff;--ink:#fff;--ink-2:#f4f7fe;--ink-3:#e6ecfb;--border:#d8dfef;--border-2:#bcc8e6;--lime:#3b6ef5;--lime-dim:#2a55c9;--lime-glow:rgba(59,110,245,.14);--cyan:#0a8fd6;--red:#d63031;--amber:#b56200;--text-1:#0d1117;--text-2:#4a5568;--text-3:#6b7488;--nav-bg:transparent;--backdrop:#f3f6fc;--on-accent:#fff;--accent-rgb:59,110,245;--shadow-shell:0 40px 60px -30px rgba(40,70,160,.35);--mark-bg:var(--lime);--mark-fg:#fff;--lime-2:#a8f51b}
+    [data-theme="light"]{--black:#e4e7e1;--shell:#f7f7f4;--ink:#f8f8f5;--ink-2:#f0f1ec;--ink-3:#e6e8e1;--border:#d2d7ce;--border-2:#bac2b7;--lime:#315cc5;--lime-dim:#254a9f;--lime-glow:rgba(49,92,197,.12);--cyan:#167eac;--red:#bf3438;--amber:#925000;--text-1:#202a36;--text-2:#455265;--text-3:#596577;--nav-bg:transparent;--backdrop:#e4e7e1;--on-accent:#fff;--accent-rgb:49,92,197;--shadow-shell:0 36px 58px -32px rgba(40,55,75,.22);--mark-bg:var(--lime);--mark-fg:#fff;--lime-2:#a8f51b}
     body{background:var(--backdrop);padding:48px;transition:background-color .25s,color .25s}body::before{display:none}
-    .shell{position:relative;z-index:1;max-width:1240px;margin:0 auto;background:var(--shell);border-radius:30px;box-shadow:var(--shadow-shell);overflow:hidden;padding:0 0 8px;transition:background-color .25s}
+    .shell{position:relative;z-index:1;max-width:1480px;margin:0 auto;background:var(--shell);border-radius:30px;box-shadow:var(--shadow-shell);overflow:hidden;padding:0 0 8px;transition:background-color .25s}
     [data-theme="light"] .shell{border:1px solid rgba(188,200,230,.6)}
     nav{position:relative;top:auto;z-index:100;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 28px;min-height:82px;background:transparent;backdrop-filter:none;border:0}
     .brand-mark{width:44px;height:44px;border-radius:50%;background:var(--mark-bg);color:var(--mark-fg)}.brand-mark rect{fill:currentColor}.brand-name{font-size:20px}
@@ -717,16 +717,22 @@
     .history-item{position:relative;padding-left:42px;border-radius:16px}.history-item>.compare-toggle{position:absolute;left:14px;top:18px}
     .hero{max-width:none;margin:0;padding:42px 42px 48px;display:grid;grid-template-columns:1.4fr 1fr;align-items:center;gap:40px;border-bottom:1px solid var(--border)}
     .hero-copy{min-width:0}.hero-eyebrow{font-size:10px;margin-bottom:18px}.hero-title{font-size:clamp(58px,7vw,92px);margin-bottom:22px}.hero-sub{font-size:15px;max-width:520px;margin-bottom:25px}.hero-pills{gap:8px}
-    .pill{padding:7px 12px;border-radius:999px}.pill.hi{border-color:rgba(var(--accent-rgb),.3);background:rgba(var(--accent-rgb),.06)}
+    .pill{padding:7px 12px;border-radius:999px;transition:transform .22s,border-color .22s,background-color .22s,color .22s}.pill:hover{transform:translateY(-2px);border-color:var(--lime);color:var(--text-1);background:rgba(var(--accent-rgb),.07)}
     .hero-visual{height:210px;display:flex;align-items:center;justify-content:center;gap:10px;position:relative;overflow:hidden;animation:fadeUp .7s .25s both}
     .hero-visual::before{content:"";position:absolute;inset:10% 2%;background-image:radial-gradient(rgba(255,255,255,.72) 1px,transparent 1.5px);background-size:15px 15px;mask-image:radial-gradient(ellipse at center,#000 10%,transparent 70%);opacity:.38}
-    .hero-capsule{position:relative;z-index:1;width:clamp(23px,3vw,38px);height:clamp(80px,11vw,142px);border-radius:999px;background:var(--ink-2);border:1px solid var(--border-2);display:flex;align-items:flex-end;justify-content:center;padding:6px;box-shadow:0 10px 25px rgba(0,0,0,.13)}
+    .hero-capsule{position:relative;z-index:1;width:clamp(23px,3vw,38px);height:clamp(80px,11vw,142px);border-radius:999px;background:var(--ink-2);border:1px solid var(--border-2);display:flex;align-items:flex-end;justify-content:center;padding:6px;box-shadow:0 10px 25px rgba(0,0,0,.13);animation:capsuleFloat 5s ease-in-out infinite}
+    .hero-capsule:nth-child(2){animation-delay:.35s}.hero-capsule:nth-child(3){animation-delay:.7s}.hero-capsule:nth-child(4){animation-delay:1.05s}.hero-capsule:nth-child(5){animation-delay:1.4s}
+    @keyframes capsuleFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
     .hero-capsule i{display:block;width:100%;height:var(--bar,45%);border-radius:99px;background:var(--lime);opacity:.9}.hero-capsule:nth-child(2) i{background:#fff}.hero-capsule:nth-child(3) i{height:75%;background:var(--amber)}.hero-capsule:nth-child(4) i{height:58%}.hero-capsule:nth-child(5) i{background:#ff9a1f}
     [data-theme="light"] .hero-visual::before{background-image:radial-gradient(#5572c4 1px,transparent 1.5px);opacity:.18}[data-theme="light"] .hero-capsule{background:#f3f6ff;border-color:#d8dfef}[data-theme="light"] .hero-capsule i{background:#3b6ef5}[data-theme="light"] .hero-capsule:nth-child(2) i,[data-theme="light"] .hero-capsule:nth-child(4) i{background:#b9c9fa}[data-theme="light"] .hero-capsule:nth-child(3) i{background:var(--lime-2)}[data-theme="light"] .hero-capsule:nth-child(5) i{background:#a8c9ff}
     .workspace{max-width:none;margin:0;padding:34px 28px 42px;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
     .panel,.result-panel,.chart-panel,.eval-panel,.export-bar,.progress-wrap{border-radius:22px;background:var(--ink);border-color:var(--border)}.panel-head,.result-panel-head,.chart-head{background:var(--ink-2)}
+    .panel,.result-panel,.chart-panel{transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease,background-color .25s}.panel:hover,.result-panel:hover,.chart-panel:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(20,32,48,.09)}
+    .workspace>.panel:first-child{animation:panelReveal .55s .05s both}.workspace>.panel:nth-child(2){animation:panelReveal .55s .13s both}
+    @keyframes panelReveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
     .panel-badge,.pill,.step-chip,.skill-chip,.btn-export,.history-btn,.status-pill{border-radius:999px}.panel-badge{padding:5px 11px}
     .drop-zone{border-radius:18px;border-width:1.5px}.drop-icon{border-radius:14px}.file-success{border-radius:14px;background:rgba(var(--accent-rgb),.06);border-color:rgba(var(--accent-rgb),.2)}
+    .drop-zone{transition:transform .22s,border-color .2s,background-color .25s}.drop-zone:hover,.drop-zone.drag-over{transform:translateY(-2px)}
     textarea,.practice-answer{border-radius:16px}textarea:focus,.practice-answer:focus{border-color:var(--lime);box-shadow:0 0 0 3px var(--lime-glow)}
     .error-wrap,.progress-wrap,.cta-row{grid-column:1/-1}.error-wrap{border-radius:16px}.progress-wrap{padding:18px 20px}.progress-wrap.show{display:block}.progress-track,.chart-track,.rag-track,.eval-mini-bar{border-radius:999px}.progress-track{height:10px}.progress-bar{border-radius:999px;background:linear-gradient(90deg,var(--lime-dim),var(--lime));box-shadow:0 0 18px var(--lime-glow)}
     .step-chip{padding:5px 10px}.step-chip.active,.step-chip.done{color:var(--lime);border-color:rgba(var(--accent-rgb),.4);background:rgba(var(--accent-rgb),.07)}
@@ -745,7 +751,7 @@
     @media(max-width:900px){.hero{grid-template-columns:1fr}.hero-visual{display:none}.hero-title{font-size:clamp(58px,10vw,86px)}.score-panel{grid-template-columns:auto minmax(0,1fr)}.rag-bar{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center}.rag-label{grid-column:1/-1}}
     @media(max-width:720px){body{padding:12px}.shell{border-radius:20px}nav{padding:14px 16px;min-height:unset;flex-wrap:wrap;gap:10px}.brand{margin-right:auto}.brand-mark{width:38px;height:38px}.brand-name{font-size:18px}.nav-right{gap:7px;flex:1 0 100%;justify-content:flex-start;overflow-x:auto;padding:2px 2px 5px}.history-btn,.status-pill{height:38px}.theme-btn{width:40px;height:40px}.hero{grid-template-columns:1fr;padding:32px 20px;gap:0}.hero-visual{display:none}.hero-title{font-size:clamp(53px,13vw,72px)}.hero-sub{font-size:14px;margin-bottom:20px}.workspace{grid-template-columns:minmax(0,1fr);padding:20px 14px 28px;gap:13px}.score-panel{grid-template-columns:1fr;justify-items:start;padding:22px;gap:15px}.score-info{width:100%}.rag-bar{grid-column:auto;width:100%;display:flex;flex-direction:column;align-items:stretch}.eval-grid{grid-template-columns:1fr}.eval-metric{border-right:0;border-bottom:1px solid var(--border)}.eval-metric:last-child{border-bottom:0}.eval-footer{flex-direction:column}.chart-row{grid-template-columns:minmax(76px,110px) minmax(0,1fr) 34px;gap:8px}.chart-body{padding:16px 13px}.chart-row-label{font-size:10px}.export-bar{flex-direction:column;align-items:flex-start}.export-btns{justify-content:flex-start}.resume-export-note{max-width:none}footer{flex-direction:column;align-items:flex-start;padding:16px 18px}.history-drawer{top:0;right:0;bottom:0;width:100vw;border-radius:0}.drawer-header{border-radius:0}.evidence-top,.candidate-row,.compare-row{align-items:flex-start;flex-direction:column}.error-wrap{align-items:flex-start}.btn-run{width:100%}}
     @media(max-width:390px){body{padding:8px}.shell{border-radius:18px}.nav-right{gap:6px}.history-btn{padding:0 11px}.status-pill{padding:0 9px}.panel-body{padding:14px}.hero{padding:28px 16px}.hero-title{font-size:50px}.hero-pills{gap:6px}.pill{font-size:9px;padding:6px 9px}.score-counters{gap:7px}.counter{padding:8px}.counter-lbl{font-size:8px}}
-    @media(prefers-reduced-motion:reduce){.hero-visual,.hero-eyebrow,.hero-title,.hero-sub,.hero-pills{animation:none!important}.hero-eyebrow,.hero-title,.hero-sub,.hero-pills{opacity:1!important}*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+    @media(prefers-reduced-motion:reduce){.hero-visual,.hero-eyebrow,.hero-title,.hero-sub,.hero-pills,.hero-capsule{animation:none!important}.hero-eyebrow,.hero-title,.hero-sub,.hero-pills{opacity:1!important}*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
   </style>
 </head>
 <body>
@@ -805,15 +811,15 @@
   <!-- HERO -->
   <section class="hero">
     <div class="hero-copy">
-    <div class="hero-eyebrow">AI-Powered · Instant Results</div>
-    <h1 class="hero-title">FIND OUT IF<br/>YOUR RESUME<br/><span class="accent">GETS THE JOB.</span></h1>
-    <p class="hero-sub">Upload your resume, paste a job description, and get an honest score — plus exactly what to fix to stand out and pass the screening.</p>
+    <div class="hero-eyebrow">Simple, useful resume feedback</div>
+    <h1 class="hero-title">MAKE YOUR<br/>RESUME FIT<br/><span class="accent">THE ROLE.</span></h1>
+    <p class="hero-sub">Upload your resume and paste the job description. See what already matches, what may be missing, and where a small edit could help.</p>
     <div class="hero-pills">
-      <span class="pill">Instant match score</span>
-      <span class="pill">Skills gap analysis</span>
-      <span class="pill">Rewritten bullet points</span>
-      <span class="pill">ATS-ready tips</span>
-      <span class="pill">Results in under 8 seconds</span>
+      <span class="pill">See your match</span>
+      <span class="pill">Spot missing skills</span>
+      <span class="pill">Improve bullet points</span>
+      <span class="pill">Get application tips</span>
+      <span class="pill">One clear report</span>
     </div>
     </div>
     <div class="hero-visual" aria-hidden="true">
@@ -1019,7 +1025,7 @@
         <div class="export-btns">
           <button class="btn-export" type="button" id="dlDocx">Download complete resume (.docx)</button>
           <button class="btn-export" type="button" id="dlLatex">Download LaTeX (.tex)</button>
-          <span class="resume-export-note">LaTeX uses an editable ATS-friendly template; uploaded PDF styling is not copied.</span>
+          <span class="resume-export-note">Both downloads use one clean layout and carry over colors detected in your uploaded PDF.</span>
           <a class="btn-export" id="dlJson" download="resume-analysis.json">↓ Download JSON</a>
           <a class="btn-export" id="dlTxt"  download="resume-analysis.txt">↓ Download Text</a>
         </div>

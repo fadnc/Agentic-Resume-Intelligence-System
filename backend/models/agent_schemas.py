@@ -21,6 +21,20 @@ class EducationItem(AgentOutput):
     gpa: Optional[str] = Field(default=None, max_length=40)
 
 
+class ProjectItem(AgentOutput):
+    name: str = Field(default="", max_length=200)
+    technologies: list[str] = Field(default_factory=list, max_length=50)
+    duration: Optional[str] = Field(default=None, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    bullets: list[str] = Field(default_factory=list, max_length=20)
+    url: Optional[str] = Field(default=None, max_length=500)
+
+
+class ResumeStyle(AgentOutput):
+    accent_color: str = Field(default="222222", pattern=r"^[0-9A-Fa-f]{6}$")
+    secondary_color: str = Field(default="414141", pattern=r"^[0-9A-Fa-f]{6}$")
+
+
 class ParsedResume(AgentOutput):
     name: str = Field(default="", max_length=200)
     email: Optional[str] = Field(default=None, max_length=320)
@@ -30,9 +44,11 @@ class ParsedResume(AgentOutput):
     website: Optional[str] = Field(default=None, max_length=400)
     skills: list[str] = Field(default_factory=list, max_length=100)
     experience: list[ExperienceItem] = Field(default_factory=list, max_length=30)
+    projects: list[ProjectItem] = Field(default_factory=list, max_length=30)
     education: list[EducationItem] = Field(default_factory=list, max_length=20)
     summary: Optional[str] = Field(default=None, max_length=3000)
     certifications: list[str] = Field(default_factory=list, max_length=50)
+    style: ResumeStyle = Field(default_factory=ResumeStyle)
 
 
 class ParsedJob(AgentOutput):

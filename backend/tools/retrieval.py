@@ -5,7 +5,7 @@ Thin wrappers around v3 retriever.py and corpus_builder.py
 so the LangGraph retrieval_node can call them cleanly.
 """
 import numpy as np
-from backend.services.retriever import create_index, dual_search
+from backend.services.retriever import cached_resume_index_key, create_index, dual_search
 from backend.services.chunker import chunk_text
 from backend.services.embeddings import embed_texts
 
@@ -15,6 +15,10 @@ def build_resume_index(resume_text: str) -> str:
     Chunk and embed resume text, build per-request FAISS index.
     Returns the key.
     """
+    cached_key = cached_resume_index_key(resume_text)
+    if cached_key:
+        return cached_key
+
     chunks = chunk_text(resume_text, size=300, overlap=50)
     vectors = embed_texts(chunks)
     key = create_index(vectors, chunks, resume_text)
