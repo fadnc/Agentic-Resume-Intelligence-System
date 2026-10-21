@@ -1,4 +1,5 @@
 services:
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
   - type: web
     name: resume-ai-backend
     runtime: docker
@@ -8,8 +9,23 @@ services:
     healthCheckPath: /health
     envVars:
       - key: GROQ_API_KEY
-        sync: false
+        sync: false          # you paste this in Render dashboard — never committed to git
       - key: USE_SAGEMAKER
         value: "false"
       - key: PYTHON_VERSION
         value: "3.12"
+
+  # ── Flask Frontend ───────────────────────────────────────────────────────────
+  - type: web
+    name: resume-ai-frontend
+    runtime: docker
+    dockerfilePath: ./Dockerfile.frontend
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          name: resume-ai-backend
+          type: web
+          property: host           # Render auto-injects the backend's internal URL
