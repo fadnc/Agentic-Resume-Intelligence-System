@@ -4,7 +4,7 @@ import requests
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
 
 
 def _backend_get(path: str, timeout: int = 10):
@@ -34,7 +34,15 @@ def analyze():
             data={"job_description": job_description},
             timeout=180,
         )
-        return jsonify(response.json()), response.status_code
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {
+                "error": "Backend returned a non-JSON response.",
+                "backend_status": response.status_code,
+                "backend_response": response.text[:1000],
+            }
+        return jsonify(payload), response.status_code
 
     except requests.exceptions.ConnectionError:
         return jsonify({

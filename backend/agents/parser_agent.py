@@ -3,9 +3,8 @@ Parser Agent
 Extracts structured fields from resume text.
 Uses resume_chunks (already retrieved) for focused context — avoids re-embedding.
 """
-import json
-import re
 from backend.agents.state import ResumeState
+from backend.agents.json_utils import parse_json_object
 from backend.services.llm import call_llm
 
 PARSER_PROMPT = """
@@ -60,13 +59,7 @@ def parser_agent(state: ResumeState) -> ResumeState:
         resume_chunks=chunks_preview,
     )
     raw = call_llm(prompt, system="You are a JSON-only resume parser.", temperature=0.1)
-    raw = re.sub(r"```(?:json)?|```", "", raw).strip()
-
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        parsed = json.loads(m.group()) if m else None
+    parsed = parse_json_object(raw)
 
     if not parsed:
         return {**state, "error": "Parser JSON error", "messages": ["[parser] parse failed"]}

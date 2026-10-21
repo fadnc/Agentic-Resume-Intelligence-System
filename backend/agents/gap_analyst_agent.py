@@ -4,9 +4,9 @@ Combines semantic similarity (v3 FAISS embeddings) + LLM gap reasoning.
 Grounds scoring in KB hiring_criteria corpus (v3).
 """
 import json
-import re
 import numpy as np
 from backend.agents.state import ResumeState
+from backend.agents.json_utils import parse_json_object
 from backend.services.llm import call_llm
 from backend.services.embeddings import embed_texts
 
@@ -49,6 +49,8 @@ def _cosine(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def gap_analyst_agent(state: ResumeState) -> ResumeState:
+    if state.get("error"):
+        return state
     parsed_resume = state.get("parsed_resume") or {}
     parsed_jd = state.get("parsed_jd") or {}
 
@@ -79,13 +81,7 @@ def gap_analyst_agent(state: ResumeState) -> ResumeState:
         hiring_criteria_context=hiring_ctx or "Not available",
     )
     raw = call_llm(prompt, system="You are a JSON-only gap analyst.", temperature=0.1)
-    raw = re.sub(r"```(?:json)?|```", "", raw).strip()
-
-    try:
-        analysis = json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        analysis = json.loads(m.group()) if m else None
+    analysis = parse_json_object(raw)
 
     if not analysis:
         return {**state, "error": "Gap analyst JSON error", "messages": ["[gap_analyst] parse failed"]}

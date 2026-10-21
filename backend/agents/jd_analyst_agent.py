@@ -3,9 +3,8 @@ JD Analyst Agent
 Parses and ranks job description requirements.
 Grounds analysis in the v3 KB corpora: job_market + ats_keywords.
 """
-import json
-import re
 from backend.agents.state import ResumeState
+from backend.agents.json_utils import parse_json_object
 from backend.services.llm import call_llm
 
 JD_PROMPT = """
@@ -38,6 +37,8 @@ Return ONLY valid JSON:
 
 
 def jd_analyst_agent(state: ResumeState) -> ResumeState:
+    if state.get("error"):
+        return state
     jd_text = state.get("jd_text", "")
     if not jd_text:
         return {**state, "error": "No JD text", "messages": ["[jd_analyst] no input"]}
@@ -52,13 +53,7 @@ def jd_analyst_agent(state: ResumeState) -> ResumeState:
         ats_keyword_context=ats_keyword_ctx or "Not available",
     )
     raw = call_llm(prompt, system="You are a JSON-only JD analyst.", temperature=0.1)
-    raw = re.sub(r"```(?:json)?|```", "", raw).strip()
-
-    try:
-        parsed_jd = json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        parsed_jd = json.loads(m.group()) if m else None
+    parsed_jd = parse_json_object(raw)
 
     if not parsed_jd:
         return {**state, "error": "JD analyst JSON error", "messages": ["[jd_analyst] parse failed"]}

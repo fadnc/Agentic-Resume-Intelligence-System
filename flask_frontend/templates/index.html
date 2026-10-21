@@ -355,7 +355,8 @@
     }
     .drop-zone:hover::before, .drop-zone.drag-over::before { opacity: 1; }
     .drop-zone:hover, .drop-zone.drag-over { border-color: var(--lime); }
-    .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop-zone input[type="file"] { position: absolute; inset: 0; z-index: 2; opacity: 0; cursor: pointer; }
+    .drop-zone > :not(input) { pointer-events: none; }
 
     .drop-icon {
       width: 44px; height: 44px; border-radius: 10px;
@@ -437,11 +438,18 @@
     .progress-step { font-family: var(--ff-mono); font-size: 12px; color: var(--lime); }
     .progress-pct  { font-family: var(--ff-mono); font-size: 12px; color: var(--text-3); }
     .progress-track { height: 3px; background: var(--ink-3); border-radius: 3px; overflow: hidden; transition: background 0.3s; }
-    .progress-bar   { height: 100%; background: linear-gradient(90deg,var(--lime) 0%,var(--cyan) 100%); border-radius: 3px; width: 0%; box-shadow: 0 0 10px var(--lime); transition: width 0.5s cubic-bezier(0.22,1,0.36,1); }
+    .progress-bar   { height: 100%; background: linear-gradient(90deg,var(--lime) 0%,var(--cyan) 100%); border-radius: 3px; width: 0%; box-shadow: 0 0 10px var(--lime); transition: width 0.2s linear; position: relative; overflow: hidden; }
+    .progress-bar::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent); transform: translateX(-100%); animation: progressShimmer 1.6s ease-in-out infinite; }
+    @keyframes progressShimmer { to { transform: translateX(100%); } }
     .progress-steps { display: flex; gap: 6px; flex-wrap: wrap; }
     .step-chip { font-family: var(--ff-mono); font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-3); transition: border-color 0.2s, color 0.2s, background 0.2s; }
     .step-chip.active { border-color: rgba(184,255,62,0.4); color: var(--lime); background: rgba(184,255,62,0.06); }
     .step-chip.done   { border-color: var(--border); color: var(--text-3); text-decoration: line-through; }
+    .progress-note { color: var(--text-3); font-size: 11px; line-height: 1.5; }
+    @media (prefers-reduced-motion: reduce) {
+      .progress-bar { transition: none; }
+      .progress-bar::after { animation: none; }
+    }
 
     /* ── ERROR ───────────────────────────────────────────────────────────── */
     .error-wrap {
@@ -718,7 +726,7 @@
         <span class="pulse"></span>
         <span id="statusText">connecting</span>
       </div>
-      <a class="nav-doc" href="http://localhost:8000/docs" target="_blank">For Developers</a>
+      <a class="nav-doc" href="http://localhost:8001/docs" target="_blank">For Developers</a>
     </div>
   </nav>
 
@@ -746,7 +754,7 @@
       </div>
       <div class="panel-body">
         <div class="drop-zone" id="dropZone">
-          <input type="file" id="resumeFile" accept=".pdf" />
+          <input type="file" id="resumeFile" accept=".pdf,application/pdf" aria-label="Choose a PDF resume" />
           <div class="drop-icon">
             <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
           </div>
@@ -782,10 +790,11 @@
 
     <div class="progress-wrap" id="progressWrap">
       <div class="progress-top">
-        <span class="progress-step" id="progressStep">Getting ready…</span>
+        <span class="progress-step" id="progressStep" aria-live="polite">Getting ready…</span>
         <span class="progress-pct"  id="progressPct">0%</span>
       </div>
-      <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="progress-track" id="progressTrack" role="progressbar" aria-label="Resume analysis progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-bar" id="progressBar"></div></div>
+      <p class="progress-note">Progress is estimated while your report is being generated.</p>
       <div class="progress-steps">
         <span class="step-chip" id="sc0">Reading your file</span>
         <span class="step-chip" id="sc1">Pulling out text</span>
@@ -1122,31 +1131,37 @@
 
     /* ── PROGRESS ───────────────────────────────────────────────────────── */
     const STEPS = [
-      { id:'sc0', label:'Reading your file…',                    pct: 10 },
-      { id:'sc1', label:'Pulling out your experience…',          pct: 25 },
-      { id:'sc2', label:"Understanding what you've done…",       pct: 40 },
-      { id:'sc3', label:'Finding the most relevant parts…',      pct: 55 },
-      { id:'sc4', label:'Checking against industry norms…',      pct: 70 },
-      { id:'sc5', label:'Generating your personalised report…',  pct: 88 },
-      { id:'sc6', label:'Almost there — wrapping up…',           pct: 96 },
+      { id:'sc0', label:'Reading your file…',                    pct: 8 },
+      { id:'sc1', label:'Pulling out your experience…',          pct: 20 },
+      { id:'sc2', label:"Understanding what you've done…",       pct: 34 },
+      { id:'sc3', label:'Finding the most relevant parts…',      pct: 48 },
+      { id:'sc4', label:'Checking against industry norms…',      pct: 63 },
+      { id:'sc5', label:'Generating your personalised report…',  pct: 78 },
+      { id:'sc6', label:'Finishing your analysis…',              pct: 90 },
     ];
 
-    let stepIdx = 0, ticker;
+    let stepIdx = 0, ticker, progressStartedAt = 0;
 
     function setProgress(pct, label) {
-      $('progressBar').style.width = pct + '%';
+      const value = Math.max(0, Math.min(100, pct));
+      $('progressBar').style.width = value + '%';
+      $('progressTrack').setAttribute('aria-valuenow', String(Math.round(value)));
       $('progressStep').textContent = label;
-      $('progressPct').textContent  = Math.round(pct) + '%';
+      $('progressPct').textContent  = Math.round(value) + '%';
     }
 
-    function advanceStep() {
-      if (stepIdx > 0) $(STEPS[stepIdx - 1].id).className = 'step-chip done';
-      if (stepIdx < STEPS.length) {
-        const cur = STEPS[stepIdx];
-        $(cur.id).className = 'step-chip active';
-        setProgress(cur.pct, cur.label);
+    function updateProgress() {
+      const elapsedSeconds = (Date.now() - progressStartedAt) / 1000;
+      const pct = Math.min(94, 8 + 88 * (1 - Math.exp(-elapsedSeconds / 11)));
+
+      while (stepIdx < STEPS.length && pct >= STEPS[stepIdx].pct) {
+        if (stepIdx > 0) $(STEPS[stepIdx - 1].id).className = 'step-chip done';
+        $(STEPS[stepIdx].id).className = 'step-chip active';
         stepIdx++;
       }
+
+      const currentStep = STEPS[Math.max(0, stepIdx - 1)];
+      setProgress(pct, currentStep.label);
     }
 
     function resetSteps() {
@@ -1170,7 +1185,9 @@
       btn.textContent = 'Analysing your resume…';
       btn.classList.add('running');
 
-      ticker = setInterval(advanceStep, 700);
+      progressStartedAt = Date.now();
+      updateProgress();
+      ticker = setInterval(updateProgress, 150);
 
       try {
         const fd = new FormData();
@@ -1181,14 +1198,14 @@
         const data = await resp.json();
 
         clearInterval(ticker);
-        STEPS.forEach(s => $(s.id).className = 'step-chip done');
-        setProgress(100, 'Done! Here are your results.');
 
         if (!resp.ok || data.error) {
           prog.classList.remove('show');
-          $('errorMsg').textContent = data.error || 'Something went wrong. Please try again.';
+          $('errorMsg').textContent = data.error || data.detail || 'Something went wrong. Please try again.';
           errW.classList.add('show');
         } else {
+          STEPS.forEach(s => $(s.id).className = 'step-chip done');
+          setProgress(100, 'Done! Here are your results.');
           setTimeout(() => prog.classList.remove('show'), 800);
           renderResults(data);
           saveToHistory(data, jobDesc.value);

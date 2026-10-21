@@ -32,34 +32,30 @@ A production-grade AI system that semantically matches resumes to job descriptio
 
 ### Agent Graph (LangGraph StateGraph)
 
+```mermaid
+flowchart TD
+    A[Browser: PDF resume + job description] --> B[Flask UI and proxy]
+    B --> C[FastAPI POST /analyze]
+    C --> D[Validate PDF and extract resume text]
+    D --> E[LangGraph: optional JD scrape if URL is present and text is empty]
+    E --> F[Build resume index and retrieve context]
+    F --> F1[Resume FAISS: top 3 chunks]
+    F --> F2[Four KB corpora: top 2 chunks each]
+    F1 --> G[Parser agent: extract resume details]
+    F2 --> G
+    G --> H[JD analyst: rank requirements]
+    H --> I[Gap analyst: score fit and find gaps]
+    I --> J{Match score >= 30?}
+    J -- Yes --> K[Rewriter agent: tailored bullets and summary]
+    J -- No --> L[Skip rewriting]
+    K --> M[Evaluation: compute metrics and log to SQLite]
+    L --> M
+    M --> M1[Background MLflow run: score, latency, skill counts, evaluation metrics]
+    M --> N[FastAPI returns analysis JSON]
+    N --> O[Flask returns result to browser]
 ```
-Input (PDF resume + JD text or URL)
-          │
-          ▼
-   scrape_jd node ──── optional: Playwright/BS4 scraper
-          │
-          ▼
-   retrieval node ──── dual FAISS search:
-          │              top-3 resume chunks + top-2 per KB corpus (8 KB chunks)
-          ▼
-   parser agent ─────── extracts skills, experience, education from resume
-          │              grounded in retrieved resume chunks
-          ▼
-   jd_analyst agent ─── ranks must-have vs nice-to-have requirements
-          │              grounded in KB: job_market + ats_keywords
-          ▼
-   gap_analyst agent ── cosine similarity + LLM scoring (0–100)
-          │              grounded in KB: hiring_criteria
-          │
-     score ≥ 30? ──── YES ──► rewriter agent ── tailored bullets + summary
-          │                                       grounded in KB: resume_examples
-          │ NO
-          ▼
-       eval node ─────── RAGAS-style metrics logged to SQLite
-          │
-          ▼
-        END → JSON response
-```
+
+The active API requires job-description text. Although the graph has an optional URL scraper node, URL-only input is not accepted by the current `/analyze` form contract.
 
 ### Knowledge Base (4 Persistent FAISS Corpora)
 
@@ -79,12 +75,12 @@ Indexes are built once at Docker image build time (`RUN python init_kb.py`) and 
 ### ML & Backend
 - **LangGraph** — agent orchestration with `StateGraph`, shared `ResumeState` TypedDict, conditional routing
 - **FastAPI** — async API with lifespan KB loading, PDF upload, background MLflow logging
-- **Groq API** — `llama-3.3-70b-versatile`, JSON mode, temperature 0.1 for structured outputs
+- **Groq API** — `openai/gpt-oss-120b`, JSON mode, temperature 0.1 for structured outputs
 - **Sentence Transformers** (`all-MiniLM-L6-v2`) — 384-dim normalized embeddings, LRU-cached
 - **FAISS** — `IndexFlatIP` (cosine on normalized vectors) for KB corpora, `IndexFlatL2` for per-request resume index
 - **PyMuPDF** — async PDF extraction via `ThreadPoolExecutor`
 - **Playwright + BeautifulSoup** — JD scraping from LinkedIn, Naukri, and generic URLs
-- **MLflow** — experiment tracking: match score, latency, gap count per inference run
+- **MLflow** — one `document-intelligence-v7` run per analysis with match score, latency, skill counts, retrieval counts, and evaluation metrics. Resume and job-description text are not logged.
 - **SQLite** — persistent RAGAS-style eval log (context relevance, faithfulness, answer relevance)
 
 ### DevOps & Infrastructure
@@ -165,8 +161,10 @@ cp .env.example .env
 # Add GROQ_API_KEY to .env
 
 python init_kb.py               # Build FAISS indexes once
-uvicorn backend.app:app --reload --port 8000
+uvicorn backend.app:app --reload --port 8001
 ```
+
+For the local Flask frontend, set `BACKEND_URL=http://127.0.0.1:8001` before starting it. Docker uses its internal backend address and keeps port 8000.
 
 ### Docker (all services)
 
@@ -300,6 +298,8 @@ Three RAGAS-style metrics computed and persisted to SQLite on every inference:
 | `MLFLOW_TRACKING_URI` | MLflow server URL (default: http://localhost:5001) |
 | `USE_SAGEMAKER` | Route LLM to SageMaker endpoint (default: false) |
 | `SAGEMAKER_ENDPOINT` | SageMaker endpoint name |
+
+The Docker Compose backend reaches MLflow at `http://mlflow:5001`. For a separate deployment, set `MLFLOW_TRACKING_URI` to an address the backend can reach.
 
 ---
 

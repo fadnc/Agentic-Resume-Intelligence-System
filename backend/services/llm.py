@@ -20,16 +20,38 @@ def call_groq_llm(
     from groq import Groq
     client = Groq(api_key=GROQ_API_KEY)
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
+    request = {
+        "model": "openai/gpt-oss-120b",
+        "messages": [
             {"role": "system", "content": system},
-            {"role": "user",   "content": prompt},
+            {"role": "user", "content": prompt},
         ],
-        temperature=temperature,
-        max_tokens=max_tokens,
-        response_format={"type": "json_object"},
-    )
+        "temperature": temperature,
+        "max_completion_tokens": max_tokens,
+        # GPT-OSS is a reasoning model. Hide the reasoning field so constrained
+        # JSON decoding receives only the final answer, and keep reasoning bounded.
+        "reasoning_effort": "low",
+        "include_reasoning": False,
+    }
+    try:
+        response = client.chat.completions.create(
+            **request,
+            response_format={"type": "json_object"},
+        )
+    except Exception as exc:
+        # Groq occasionally returns json_validate_failed with an empty generation
+        # for gpt-oss even when the prompt requests valid JSON. Retry once without
+        # constrained decoding; the agent's JSON parser validates the returned text.
+        error = getattr(exc, "body", None)
+        error = error.get("error", {}) if isinstance(error, dict) else {}
+        if not isinstance(error, dict) or error.get("code") != "json_validate_failed":
+            raise
+        logger.warning("[llm] Groq JSON constrained output failed; retrying once in prompt-only JSON mode.")
+        request["messages"] = [
+            {"role": "system", "content": f"{system} Return exactly one valid JSON object, with no markdown or surrounding text."},
+            {"role": "user", "content": prompt},
+        ]
+        response = client.chat.completions.create(**request)
     output = response.choices[0].message.content
     logger.debug(f"[llm] Groq response preview: {output[:120]}")
     return output

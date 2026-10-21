@@ -208,3 +208,8 @@ __marimo__/
 
 
 embeddings_store/
+mlflow.db
+mlflow-artifacts/
+.local-logs/
+.local-services/
+eg/

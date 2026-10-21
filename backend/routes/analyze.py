@@ -6,18 +6,22 @@ Also accepts optional jd_url for scraping.
 """
 import time
 import io
+import logging
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from typing import Optional
 
 from backend.agents.graph import agent_graph
 from backend.services.parser import extract_text_from_pdf
+from backend.services.mlflow_tracking import log_analysis_run
 from backend.models.schemas import AnalyzeResponse
 
 router = APIRouter()
+logger = logging.getLogger("resume-ai")
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(
+    background_tasks: BackgroundTasks,
     resume: UploadFile = File(...),
     job_description: str = Form(...),
     jd_url: Optional[str] = Form(default=None),
@@ -61,12 +65,55 @@ async def analyze(
         "latency_ms":       None,
     }
 
-    result = agent_graph.invoke(initial_state)
-
-    if result.get("error"):
-        raise HTTPException(status_code=500, detail=result["error"])
+    try:
+        result = agent_graph.invoke(initial_state)
+    except Exception as exc:
+        logger.exception("[analyze] agent pipeline failed")
+        elapsed_ms = (time.time() - start) * 1000
+        log_analysis_run(
+            elapsed_ms,
+            jd_url_provided=bool(jd_url),
+            status="error",
+        )
+        if exc.__class__.__name__ == "AuthenticationError":
+            raise HTTPException(
+                status_code=502,
+                detail="Groq rejected GROQ_API_KEY. Replace it in .env with a valid key and restart the backend.",
+            ) from exc
+        if exc.__class__.__name__ == "APIConnectionError":
+            raise HTTPException(
+                status_code=502,
+                detail="Could not connect to the Groq API. Check network access from the backend and retry.",
+            ) from exc
+        raise
 
     elapsed_ms = (time.time() - start) * 1000
+    kb_chunks = result.get("kb_chunks") or {}
+    tracking_data = {
+        "match_score": result.get("match_score"),
+        "missing_skill_count": len(result.get("missing_skills") or []),
+        "matched_skill_count": len(result.get("matched_skills") or []),
+        "resume_chunk_count": len(result.get("resume_chunks") or []),
+        "kb_chunk_count": sum(len(chunks) for chunks in kb_chunks.values()),
+        "eval_metrics": result.get("eval_metadata") or {},
+    }
+
+    if result.get("error"):
+        log_analysis_run(
+            elapsed_ms,
+            jd_url_provided=bool(jd_url),
+            status="error",
+            **tracking_data,
+        )
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    background_tasks.add_task(
+        log_analysis_run,
+        elapsed_ms,
+        jd_url_provided=bool(jd_url),
+        status="success",
+        **tracking_data,
+    )
 
     # v3-compatible response shape + v7 extras
     return AnalyzeResponse(

@@ -5,8 +5,8 @@ Grounds output in v3 KB: resume_examples + hiring_criteria corpora.
 Never fabricates experience.
 """
 import json
-import re
 from backend.agents.state import ResumeState
+from backend.agents.json_utils import parse_json_object
 from backend.services.llm import call_llm
 
 REWRITER_PROMPT = """
@@ -53,6 +53,8 @@ Return ONLY valid JSON:
 
 
 def rewriter_agent(state: ResumeState) -> ResumeState:
+    if state.get("error"):
+        return state
     parsed_resume = state.get("parsed_resume") or {}
     parsed_jd     = state.get("parsed_jd") or {}
     matched       = state.get("matched_skills") or []
@@ -81,13 +83,7 @@ def rewriter_agent(state: ResumeState) -> ResumeState:
         temperature=0.2,
         max_tokens=1500,
     )
-    raw = re.sub(r"```(?:json)?|```", "", raw).strip()
-
-    try:
-        result = json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        result = json.loads(m.group()) if m else None
+    result = parse_json_object(raw)
 
     if not result:
         return {**state, "error": "Rewriter JSON error", "messages": ["[rewriter] parse failed"]}

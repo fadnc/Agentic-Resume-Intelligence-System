@@ -13,7 +13,7 @@ from backend.services.embeddings import embed_texts
 def build_resume_index(resume_text: str) -> str:
     """
     Chunk and embed resume text, build per-request FAISS index.
-    Returns the MD5 cache key.
+    Returns the key.
     """
     chunks = chunk_text(resume_text, size=300, overlap=50)
     vectors = embed_texts(chunks)
