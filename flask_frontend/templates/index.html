@@ -786,7 +786,7 @@
             <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
           </div>
           <div class="drop-title">Drop your resume here</div>
-          <div class="drop-hint">or click to browse · max 10 MB</div>
+          <div class="drop-hint">or click to browse · max 4 MB</div>
         </div>
         <div class="file-success" id="fileSuccess">
           <svg class="file-success-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -987,6 +987,7 @@
 
   <script>
     const $ = id => document.getElementById(id);
+    const MAX_PDF_BYTES = 4 * 1024 * 1024;
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
     /* ── COLOR / GRADE HELPERS ──────────────────────────────────────────── */
@@ -1178,14 +1179,32 @@
     });
 
     function handleFile(file) {
-      if (!file || (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf')) return;
+      if (!file) return;
       const files = recruiterMode.checked ? Array.from(fileInput.files || []) : [file];
-      if (recruiterMode.checked && files.length > 5) {
+      const rejectFiles = message => {
         fileInput.value = '';
-        $('errorMsg').textContent = 'Recruiter mode accepts up to five PDFs per batch.';
+        fileSuccess.classList.remove('show');
+        $('errorMsg').textContent = message;
         $('errorWrap').classList.add('show');
+        checkReady();
+      };
+      if (files.some(item => !item.name.toLowerCase().endsWith('.pdf') && item.type !== 'application/pdf')) {
+        rejectFiles('Only PDF resumes are supported.');
         return;
       }
+      if (files.some(item => item.size > MAX_PDF_BYTES)) {
+        rejectFiles('Each resume PDF must be 4 MB or smaller.');
+        return;
+      }
+      if (files.reduce((total, item) => total + item.size, 0) > MAX_PDF_BYTES) {
+        rejectFiles('Selected PDFs must total 4 MB or less, including recruiter batches.');
+        return;
+      }
+      if (recruiterMode.checked && files.length > 5) {
+        rejectFiles('Recruiter mode accepts up to five PDFs per batch.');
+        return;
+      }
+      $('errorWrap').classList.remove('show');
       $('fileName').textContent = recruiterMode.checked ? `${files.length} resumes selected` : file.name;
       $('fileSize').textContent = (files.reduce((total, item) => total + item.size, 0) / 1024).toFixed(0) + ' KB total';
       fileSuccess.classList.add('show');
@@ -1287,6 +1306,8 @@
         const fd = new FormData();
         const selectedFiles = Array.from(fileInput.files || []);
         if (!selectedFiles.length) throw new Error('Select a PDF resume first.');
+        if (selectedFiles.some(file => file.size > MAX_PDF_BYTES)) throw new Error('Each resume PDF must be 4 MB or smaller.');
+        if (selectedFiles.reduce((total, file) => total + file.size, 0) > MAX_PDF_BYTES) throw new Error('Selected PDFs must total 4 MB or less, including recruiter batches.');
         const endpoint = recruiterMode.checked ? '/recruiter/screen' : '/analyze';
         if (recruiterMode.checked && selectedFiles.length > 5) throw new Error('Recruiter mode accepts up to five PDFs.');
         if (recruiterMode.checked && !$('recruiterAuthorized').checked) throw new Error('Confirm authorization before screening candidate resumes.');
