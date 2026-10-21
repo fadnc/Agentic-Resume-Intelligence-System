@@ -678,6 +678,28 @@
       .history-drawer { width: 100%; }
       .nav-right { gap: 10px; }
     }
+    .mode-toggle { display:flex; align-items:center; gap:8px; color:var(--text-2); font-size:12px; margin:0 0 14px; }
+    .mode-toggle input { accent-color:var(--lime); }
+    .recruiter-consent { display:none; margin:0 0 14px; color:var(--text-3); font-size:11px; line-height:1.5; }
+    .recruiter-consent.show { display:block; }
+    .evidence-list, .interview-list { display:grid; gap:10px; }
+    .evidence-item, .interview-item, .candidate-row, .compare-row { border:1px solid var(--border); border-radius:10px; padding:12px; background:var(--ink-2); }
+    .evidence-top, .candidate-row, .compare-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .evidence-status { font:11px var(--ff-mono); color:var(--lime); text-transform:uppercase; }
+    .evidence-status.missing { color:var(--amber); }
+    .evidence-quote, .interview-answer { display:block; color:var(--text-2); margin-top:8px; font-size:13px; line-height:1.55; }
+    .practice-answer { width:100%; min-height:90px; resize:vertical; margin-top:12px; padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--ink-1); color:var(--text-1); font:13px var(--ff-body); }
+    .practice-feedback { margin-top:10px; color:var(--text-2); font-size:13px; line-height:1.55; }
+    .product-results { display:none; grid-column:1/-1; }
+    .product-results.show { display:block; }
+    .compare-toggle { accent-color:var(--lime); }
+    .history-item { position:relative; padding-left:42px; }
+    .history-item > .compare-toggle { position:absolute; left:14px; top:18px; }
+    .compare-actions { display:flex; gap:8px; margin:14px 18px; }
+    .history-note { padding:0 18px; color:var(--text-3); font-size:11px; line-height:1.5; }
+    .compare-panel { display:none; padding:0 18px 18px; }
+    .compare-panel.show { display:grid; gap:8px; }
+    .resume-export-note { color:var(--text-3); font-size:11px; }
   </style>
 </head>
 <body>
@@ -691,11 +713,14 @@
       <span class="drawer-title">YOUR HISTORY</span>
       <button class="drawer-close" onclick="closeHistory()">✕</button>
     </div>
+    <div class="history-note">Saved analyses stay in this browser. They may include resume excerpts; clear history to remove them from this device.</div>
     <div class="drawer-body" id="drawerBody">
       <div class="drawer-empty">
         No analyses yet.<br/>Run your first one and it'll show up here.
       </div>
     </div>
+    <div class="compare-actions"><button class="drawer-clear" id="compareBtn" type="button" onclick="compareSavedJobs()">Compare selected jobs</button></div>
+    <div class="compare-panel" id="comparePanel"></div>
     <button class="drawer-clear" id="drawerClear" onclick="clearHistory()" style="display:none">Clear all history</button>
   </div>
 
@@ -750,9 +775,11 @@
     <div class="panel">
       <div class="panel-head">
         <span class="panel-label">Your Resume</span>
-        <span class="panel-badge">PDF only</span>
+        <span class="panel-badge" id="resumeModeLabel">PDF only</span>
       </div>
       <div class="panel-body">
+        <label class="mode-toggle"><input type="checkbox" id="recruiterMode" /> Recruiter mode: compare up to 5 resumes</label>
+        <div class="recruiter-consent" id="recruiterConsent"><label class="mode-toggle"><input type="checkbox" id="recruiterAuthorized" /> I’m authorized to submit these candidates’ resumes.</label>Uploads are processed by the configured LLM provider. Use the comparison as review support and verify the resume evidence yourself.</div>
         <div class="drop-zone" id="dropZone">
           <input type="file" id="resumeFile" accept=".pdf,application/pdf" aria-label="Choose a PDF resume" />
           <div class="drop-icon">
@@ -854,8 +881,8 @@
       <!-- Score Breakdown Chart -->
       <div class="chart-panel">
         <div class="chart-head">
-          <span class="chart-title">Score Breakdown</span>
-          <span class="chart-subtitle">How you scored across each dimension</span>
+          <span class="chart-title">Resume evidence coverage</span>
+          <span class="chart-subtitle">How often the resume text supports the JD requirements</span>
         </div>
         <div class="chart-body" id="chartBody"></div>
       </div>
@@ -885,6 +912,16 @@
           <span class="result-panel-count">Click any to copy</span>
         </div>
         <div class="result-panel-body"><div class="bullets-list" id="bulletList"></div></div>
+      </div>
+
+      <div class="result-panel" style="grid-column:1/-1">
+        <div class="result-panel-head"><span class="result-panel-title">Evidence for each job requirement</span><span class="result-panel-count">Based on extracted resume text</span></div>
+        <div class="result-panel-body"><div id="evidenceList" class="evidence-list"></div></div>
+      </div>
+
+      <div class="result-panel" style="grid-column:1/-1">
+        <div class="result-panel-head"><span class="result-panel-title">Interview practice</span><span class="result-panel-count">Questions and answer outlines</span></div>
+        <div class="result-panel-body"><div id="interviewList" class="interview-list"></div></div>
       </div>
 
       <!-- Eval -->
@@ -924,12 +961,16 @@
       <div class="export-bar">
         <span class="export-label">Save your results</span>
         <div class="export-btns">
+          <button class="btn-export" type="button" id="dlDocx">Download complete resume (.docx)</button>
+          <button class="btn-export" type="button" id="dlLatex">Download LaTeX (.tex)</button>
+          <span class="resume-export-note">LaTeX uses an editable ATS-friendly template; uploaded PDF styling is not copied.</span>
           <a class="btn-export" id="dlJson" download="resume-analysis.json">↓ Download JSON</a>
           <a class="btn-export" id="dlTxt"  download="resume-analysis.txt">↓ Download Text</a>
         </div>
       </div>
 
     </div><!-- /results -->
+    <div class="product-results" id="recruiterResults"></div>
   </main>
 
   <footer>
@@ -946,6 +987,7 @@
 
   <script>
     const $ = id => document.getElementById(id);
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
     /* ── COLOR / GRADE HELPERS ──────────────────────────────────────────── */
     function scoreColor(s) {
@@ -990,7 +1032,7 @@
     const MAX_HISTORY = 20;
 
     function loadHistory() {
-      try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+      try { const history = JSON.parse(localStorage.getItem(HISTORY_KEY)); return Array.isArray(history) ? history : []; }
       catch { return []; }
     }
 
@@ -1001,6 +1043,7 @@
         date: new Date().toLocaleString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }),
         score: data.score,
         grade: gradeText(data.score),
+        title: data.job_title || jdText.trim().slice(0, 60),
         jdSnippet: jdText.trim().slice(0, 120),
         data
       });
@@ -1033,10 +1076,20 @@
       refreshHistoryBadge();
       renderHistoryDrawer();
       $('drawerClear').style.display = 'none';
+      $('comparePanel').classList.remove('show');
     }
 
     function renderHistoryDrawer() {
       const history = loadHistory();
+      const displayHistory = history.map(item => ({
+        ...item,
+        id: Number(item.id) || 0,
+        score: Number(item.score) || 0,
+        date: escapeHtml(item.date),
+        title: escapeHtml(item.title || ''),
+        jdSnippet: escapeHtml(item.jdSnippet || ''),
+        grade: escapeHtml(item.grade || ''),
+      }));
       const body = $('drawerBody');
       $('drawerClear').style.display = history.length ? 'block' : 'none';
 
@@ -1047,7 +1100,7 @@
         return;
       }
 
-      body.innerHTML = history.map(e => `
+      body.innerHTML = displayHistory.map(e => `
         <div class="history-item" onclick="loadFromHistory(${e.id})">
           <div class="history-item-top">
             <span class="history-score" style="color:${scoreColor(e.score)}">${e.score}<span style="font-family:var(--ff-mono);font-size:11px;color:var(--text-3)">/100</span></span>
@@ -1057,6 +1110,17 @@
           <div class="history-grade" style="color:${scoreColor(e.score)}">${e.grade}</div>
         </div>
       `).join('');
+      body.querySelectorAll('.history-item').forEach((card, index) => {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'compare-toggle';
+        checkbox.value = String(history[index].id);
+        checkbox.setAttribute('aria-label', 'Select saved analysis for comparison');
+        checkbox.addEventListener('click', event => event.stopPropagation());
+        card.prepend(checkbox);
+        const titleSnippet = card.querySelector('.history-jd-snippet');
+        if (titleSnippet) titleSnippet.textContent = `${history[index].title || 'Saved analysis'} · ${history[index].jdSnippet || ''}`;
+      });
     }
 
     function loadFromHistory(id) {
@@ -1066,6 +1130,18 @@
       renderResults(entry.data);
       $('results').classList.add('show');
       setTimeout(() => $('results').firstElementChild.scrollIntoView({ behavior:'smooth', block:'start' }), 350);
+    }
+
+    function compareSavedJobs() {
+      const ids = Array.from(document.querySelectorAll('.compare-toggle:checked')).map(input => input.value);
+      const selected = loadHistory().filter(item => ids.includes(String(item.id)));
+      const panel = $('comparePanel');
+      if (selected.length < 2) {
+        panel.textContent = 'Select at least two saved analyses to compare.';
+      } else {
+        panel.innerHTML = selected.map(item => `<div class="compare-row"><span>${escapeHtml(item.title || item.jdSnippet)}</span><strong>${escapeHtml(item.score)}/100</strong><span>${escapeHtml(item.grade)}</span></div>`).join('');
+      }
+      panel.classList.add('show');
     }
 
     refreshHistoryBadge();
@@ -1090,11 +1166,29 @@
     const dropZone    = $('dropZone');
     const fileInput   = $('resumeFile');
     const fileSuccess = $('fileSuccess');
+    const recruiterMode = $('recruiterMode');
+
+    recruiterMode.addEventListener('change', () => {
+      fileInput.multiple = recruiterMode.checked;
+      $('resumeModeLabel').textContent = recruiterMode.checked ? 'Up to 5 PDFs' : 'PDF only';
+      $('recruiterConsent').classList.toggle('show', recruiterMode.checked);
+      fileInput.value = '';
+      fileSuccess.classList.remove('show');
+      checkReady();
+    });
 
     function handleFile(file) {
-      if (!file || file.type !== 'application/pdf') return;
-      $('fileName').textContent = file.name;
-      $('fileSize').textContent = (file.size / 1024).toFixed(0) + ' KB';
+      if (!file || (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf')) return;
+      const files = recruiterMode.checked ? Array.from(fileInput.files || []) : [file];
+      if (recruiterMode.checked && files.length > 5) {
+        fileInput.value = '';
+        $('errorMsg').textContent = 'Recruiter mode accepts up to five PDFs per batch.';
+        $('errorWrap').classList.add('show');
+        return;
+      }
+      $('errorWrap').classList.remove('show');
+      $('fileName').textContent = recruiterMode.checked ? `${files.length} resumes selected` : file.name;
+      $('fileSize').textContent = (files.reduce((total, item) => total + item.size, 0) / 1024).toFixed(0) + ' KB total';
       fileSuccess.classList.add('show');
       checkReady();
     }
@@ -1179,6 +1273,7 @@
 
       errW.classList.remove('show');
       res.classList.remove('show');
+      $('recruiterResults').classList.remove('show');
       resetSteps();
       prog.classList.add('show');
       btn.disabled = true;
@@ -1191,10 +1286,16 @@
 
       try {
         const fd = new FormData();
-        fd.append('resume', fileInput.files[0]);
+        const selectedFiles = Array.from(fileInput.files || []);
+        if (!selectedFiles.length) throw new Error('Select a PDF resume first.');
+        const endpoint = recruiterMode.checked ? '/recruiter/screen' : '/analyze';
+        if (recruiterMode.checked && selectedFiles.length > 5) throw new Error('Recruiter mode accepts up to five PDFs.');
+        if (recruiterMode.checked && !$('recruiterAuthorized').checked) throw new Error('Confirm authorization before screening candidate resumes.');
+        if (recruiterMode.checked) selectedFiles.forEach(file => fd.append('resumes', file));
+        else fd.append('resume', selectedFiles[0]);
         fd.append('job_description', jobDesc.value);
 
-        const resp = await fetch('/analyze', { method:'POST', body: fd });
+        const resp = await fetch(endpoint, { method:'POST', body: fd });
         const data = await resp.json();
 
         clearInterval(ticker);
@@ -1207,15 +1308,21 @@
           STEPS.forEach(s => $(s.id).className = 'step-chip done');
           setProgress(100, 'Done! Here are your results.');
           setTimeout(() => prog.classList.remove('show'), 800);
-          renderResults(data);
-          saveToHistory(data, jobDesc.value);
-          res.classList.add('show');
-          setTimeout(() => $('results').firstElementChild.scrollIntoView({ behavior:'smooth', block:'start' }), 200);
+          if (recruiterMode.checked) {
+            renderRecruiterResults(data.candidates || []);
+            $('recruiterResults').classList.add('show');
+            setTimeout(() => $('recruiterResults').scrollIntoView({ behavior:'smooth', block:'start' }), 200);
+          } else {
+            renderResults(data);
+            saveToHistory(data, jobDesc.value);
+            res.classList.add('show');
+            setTimeout(() => $('results').firstElementChild.scrollIntoView({ behavior:'smooth', block:'start' }), 200);
+          }
         }
-      } catch {
+      } catch (err) {
         clearInterval(ticker);
         prog.classList.remove('show');
-        $('errorMsg').textContent = "Couldn't connect — the service may be starting up. Wait a moment and try again.";
+        $('errorMsg').textContent = err.message || "Couldn't connect — the service may be starting up. Wait a moment and try again.";
         errW.classList.add('show');
       } finally {
         btn.disabled = false;
@@ -1224,18 +1331,51 @@
       }
     });
 
-    /* ── SCORE BREAKDOWN CHART ──────────────────────────────────────────── */
-    function buildChart(score, missingCount, sugCount) {
-      const seed = score + missingCount * 7;
-      const jitter = (offset) => Math.max(10, Math.min(100, score + offset));
+    async function downloadResume(format, resume) {
+      if (!resume || !Object.keys(resume).length) {
+        $('errorMsg').textContent = 'The complete resume is unavailable. Run a new analysis first.';
+        $('errorWrap').classList.add('show');
+        return;
+      }
+      try {
+        const response = await fetch(`/export/${format}`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({resume})
+        });
+        if (!response.ok) throw new Error((await response.text()) || 'Resume export failed.');
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = format === 'docx' ? 'tailored_resume.docx' : 'tailored_resume.tex';
+        link.click();
+        URL.revokeObjectURL(link.href);
+      } catch (error) {
+        $('errorMsg').textContent = error.message;
+        $('errorWrap').classList.add('show');
+      }
+    }
 
+    function renderRecruiterResults(candidates) {
+      const panel = $('recruiterResults');
+      panel.innerHTML = `<div class="result-panel"><div class="result-panel-head"><span class="result-panel-title">Candidate comparison</span><span class="result-panel-count">Ranked by resume evidence match</span></div><div class="result-panel-body">${
+        candidates.map((candidate, index) => {
+          const evidence = candidate.requirement_evidence || [];
+          const found = evidence.filter(item => item.status === 'evidence_found').length;
+          const partial = evidence.filter(item => item.status === 'partial_evidence').length;
+          return `<div class="candidate-row"><div><strong>${index + 1}. ${escapeHtml(candidate.name || candidate.filename || 'Candidate')}</strong><div class="evidence-quote">${candidate.error ? escapeHtml(candidate.error) : `Matched: ${escapeHtml((candidate.matched_skills || []).join(', ') || 'None identified')} · Gaps: ${escapeHtml((candidate.missing_skills || []).join(', ') || 'None identified')} · Resume evidence: ${found} exact, ${partial} partial of ${evidence.length}`}</div></div><strong>${candidate.score == null ? '—' : `${escapeHtml(candidate.score)}/100`}</strong></div>`;
+        }).join('')
+      }</div></div>`;
+    }
+
+    /* ── SCORE BREAKDOWN CHART ──────────────────────────────────────────── */
+    function buildChart(evidence) {
+      const items = Array.isArray(evidence) ? evidence : [];
+      const coverage = rows => rows.length ? Math.round(rows.reduce((sum, item) => sum + (item.status === 'evidence_found' ? 1 : item.status === 'partial_evidence' ? 0.5 : 0), 0) / rows.length * 100) : 0;
       const rows = [
-        { label: 'Keyword Match',        value: jitter(-missingCount * 5),    color: 'var(--lime)'  },
-        { label: 'Experience Fit',        value: jitter((seed % 14) - 7),      color: 'var(--cyan)'  },
-        { label: 'Impact & Results',      value: jitter(-missingCount * 3),    color: 'var(--amber)' },
-        { label: 'ATS Compatibility',     value: jitter(-missingCount * 4 - 2),color: 'var(--red)'   },
-        { label: 'Formatting & Clarity',  value: Math.max(45, 100 - sugCount * 8), color: 'var(--lime)' },
-      ];
+        { label: 'Required evidence', values: items.filter(item => item.category === 'must_have'), color: 'var(--lime)' },
+        { label: 'Preferred evidence', values: items.filter(item => item.category === 'nice_to_have'), color: 'var(--cyan)' },
+        { label: 'Overall evidence', values: items, color: 'var(--amber)' },
+      ].map(row => ({ ...row, value: coverage(row.values) }));
 
       $('chartBody').innerHTML = rows.map(r => `
         <div class="chart-row">
@@ -1287,12 +1427,12 @@
       });
 
       // Chart
-      buildChart(score, ms, sg);
+      buildChart(data.requirement_evidence || []);
 
       // Skills
       $('skillCount').textContent = ms + ' to add';
       $('skillsWrap').innerHTML = (data.missing_skills || [])
-        .map((s, i) => `<span class="skill-chip" style="animation-delay:${i * 0.07}s">${s}</span>`)
+        .map((s, i) => `<span class="skill-chip" style="animation-delay:${i * 0.07}s">${escapeHtml(s)}</span>`)
         .join('');
 
       // Suggestions
@@ -1300,16 +1440,57 @@
       $('sugList').innerHTML = (data.suggestions || [])
         .map((s, i) => `<div class="suggestion" style="animation-delay:${i * 0.08}s">
           <span class="sug-num">${String(i+1).padStart(2,'0')}</span>
-          <span class="sug-text">${s}</span>
+          <span class="sug-text">${escapeHtml(s)}</span>
         </div>`).join('');
 
       // Bullets
       $('bulletList').innerHTML = (data.rewritten_bullets || [])
-        .map((b, i) => `<div class="bullet-card" style="animation-delay:${i * 0.08}s" onclick="copyBullet(this, \`${b.replace(/`/g,'\\`').replace(/\n/g,' ')}\`)">
+        .map((b, i) => `<div class="bullet-card" style="animation-delay:${i * 0.08}s" role="button" tabindex="0">
           <div class="bullet-tag">REWRITTEN BULLET · ${String(i+1).padStart(2,'0')}</div>
-          <div class="bullet-text">${b}</div>
+          <div class="bullet-text">${escapeHtml(b)}</div>
           <span class="copy-indicator">click to copy</span>
         </div>`).join('');
+      document.querySelectorAll('.bullet-card').forEach(card => {
+        const copy = () => copyBullet(card, card.querySelector('.bullet-text').textContent);
+        card.addEventListener('click', copy);
+        card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); copy(); } });
+      });
+
+      $('evidenceList').innerHTML = (data.requirement_evidence || []).map(item => `
+        <div class="evidence-item"><div class="evidence-top"><strong>${escapeHtml(item.requirement)}</strong><span class="evidence-status ${item.status === 'not_found' ? 'missing' : ''}">${escapeHtml(String(item.status).replaceAll('_',' '))} · ${Math.round((Number(item.confidence) || 0) * 100)}%</span></div><span class="evidence-quote">${escapeHtml(item.evidence)}</span></div>
+      `).join('') || '<div class="drawer-empty">No requirements were extracted.</div>';
+
+      $('interviewList').innerHTML = (data.interview_questions || []).map((item, index) => `
+        <div class="interview-item"><strong>${escapeHtml(item.question)}</strong><span class="interview-answer"><b>Answer outline:</b> ${escapeHtml(item.answer_outline)}<br/><b>Resume evidence:</b> ${escapeHtml(item.evidence_to_use)}</span><textarea class="practice-answer" id="practiceAnswer${index}" placeholder="Try your answer here…"></textarea><button class="btn-export practice-submit" type="button" data-index="${index}">Get feedback</button><div class="practice-feedback" id="practiceFeedback${index}"></div></div>
+      `).join('') || '<div class="drawer-empty">No interview questions were generated.</div>';
+      document.querySelectorAll('.practice-submit').forEach(button => button.addEventListener('click', async () => {
+        const index = Number(button.dataset.index);
+        const answer = $(`practiceAnswer${index}`).value.trim();
+        const feedback = $(`practiceFeedback${index}`);
+        if (!answer) { feedback.textContent = 'Write a practice answer first.'; return; }
+        button.disabled = true;
+        button.textContent = 'Reviewing…';
+        try {
+          const candidate = data.tailored_resume || {};
+          const response = await fetch('/interview/feedback', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+              job_title: data.job_title || 'the role',
+              question: data.interview_questions[index].question,
+              answer,
+              candidate_context: {summary:candidate.summary, skills:candidate.skills, experience:candidate.experience, education:candidate.education}
+            })
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.detail || result.error || 'Feedback could not be created.');
+          feedback.innerHTML = `<b>${escapeHtml(result.feedback)}</b><br/>Strengths: ${escapeHtml((result.strengths || []).join(' · '))}<br/>Try next: ${escapeHtml(result.next_try)}`;
+        } catch (error) {
+          feedback.textContent = error.message;
+        } finally {
+          button.disabled = false;
+          button.textContent = 'Get feedback';
+        }
+      }));
 
       // Eval
       const evalVals = [ev.context_relevance, ev.faithfulness, ev.answer_relevance];
@@ -1347,6 +1528,8 @@
         `  How on-target the advice is  : ${evalVals[2]?.toFixed(3) ?? '—'}`,
         `  Completed in                 : ${lat}`,
       ].join('\n'));
+      $('dlDocx').onclick = () => downloadResume('docx', data.tailored_resume);
+      $('dlLatex').onclick = () => downloadResume('latex', data.tailored_resume);
     }
 
     /* ── COPY ───────────────────────────────────────────────────────────── */

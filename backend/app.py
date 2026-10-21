@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.routes.analyze import router as analyze_router
 from backend.routes.health import router as health_router
 from backend.routes.eval import router as eval_router
+from backend.routes.products import router as products_router
 from backend.core.logging import configure_logging
 from backend.core.metrics import metrics
 from backend.services.corpus_builder import load_all_corpora
@@ -83,3 +84,4 @@ def get_metrics():
 app.include_router(analyze_router)
 app.include_router(health_router)
 app.include_router(eval_router)
+app.include_router(products_router)

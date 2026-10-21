@@ -146,6 +146,19 @@ Indexes are built once at Docker image build time (`RUN python init_kb.py`) and 
 
 ---
 
+## v3 Workbench
+
+The `v3` branch adds an evidence-first workflow around the existing analysis:
+
+- Each extracted JD requirement is shown with a matching resume excerpt, partial evidence, or an explicit not-found result. The evidence coverage chart uses these results instead of estimated score dimensions.
+- Analyses can be saved and compared in browser history. Saved analyses, including resume-derived text, remain in that browser's local storage.
+- The full structured resume can be exported as DOCX or editable LaTeX. LaTeX uses the built-in ATS-friendly template; an uploaded PDF cannot preserve the source document's original LaTeX styling.
+- Interview practice questions and answer outlines are generated from the resume and job description.
+- Recruiter mode screens up to five PDF resumes against one job description and ranks the results with requirement evidence. It is a review aid; recruiters should verify evidence and make decisions themselves.
+- Resume and job text are size-limited, common direct prompt-injection commands are rejected, document text is isolated as untrusted prompt data, agent outputs are schema-validated, and rendered text is HTML-escaped.
+
+These safeguards reduce prompt-injection and output risks; no text filter can guarantee detection of every adversarial input. The Groq model receives resume and job text for analysis. Recruiter mode should only be used for candidate data the operator is authorized to process.
+
 ## Local Setup
 
 ```bash

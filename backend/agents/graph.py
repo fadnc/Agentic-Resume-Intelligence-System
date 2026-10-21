@@ -10,8 +10,7 @@ Graph flow:
     → jd_analyst_agent   ← ranks JD requirements
     → gap_analyst_agent  ← scores match, identifies gaps
     → [conditional]
-        score ≥ 30  → rewriter_agent → eval_node → END
-        score < 30  →                  eval_node → END
+        gap analysis → rewriter_agent → eval_node → END
 """
 import time
 from langgraph.graph import StateGraph, END
@@ -118,9 +117,9 @@ def eval_node(state: ResumeState) -> ResumeState:
 # ── Conditional: skip rewriter if score too low ───────────────────────────────
 
 def route_after_gap(state: ResumeState) -> str:
-    if (state.get("match_score") or 0) >= 30:
-        return "rewrite"
-    return "skip_rewrite"
+    # A tailored, evidence-checked resume and interview prep are useful even
+    # when the candidate has a low initial fit score.
+    return "rewrite"
 
 
 # ── Build & compile graph ─────────────────────────────────────────────────────
