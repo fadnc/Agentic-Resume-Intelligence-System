@@ -4,7 +4,6 @@ import requests
 from flask import Flask, Response, render_template, request, jsonify
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 4_400_000  # Leaves room for multipart fields under Vercel's 4.5 MB limit.
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
 
 
@@ -19,11 +18,6 @@ def _backend_post(path: str, **kwargs):
 @app.route("/")
 def index():
     return render_template("index.html")
-
-
-@app.errorhandler(413)
-def upload_too_large(_error):
-    return jsonify({"error": "PDF uploads must be 4 MB or smaller. Recruiter batches must total 4 MB or less."}), 413
 
 
 @app.route("/analyze", methods=["POST"])

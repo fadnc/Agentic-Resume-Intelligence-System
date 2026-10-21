@@ -4,7 +4,7 @@ import re
 
 MAX_RESUME_TEXT_CHARS = 50_000
 MAX_JOB_DESCRIPTION_CHARS = 30_000
-MAX_PDF_BYTES = 4 * 1024 * 1024
+MAX_PDF_BYTES = 10 * 1024 * 1024
 
 _INJECTION_PATTERNS = (
     re.compile(r"\bignore\s+(all\s+)?(previous|prior|above|earlier)\s+instructions\b", re.I),

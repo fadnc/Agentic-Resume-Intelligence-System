@@ -11,7 +11,7 @@ from backend.routes.analyze import analyze
 from backend.services.resume_export import build_docx, build_latex
 from backend.models.agent_schemas import InterviewFeedback, ParsedResume
 from backend.agents.json_utils import parse_json_object
-from backend.security.input_guard import MAX_PDF_BYTES, check_untrusted_text, untrusted_block
+from backend.security.input_guard import check_untrusted_text, untrusted_block
 from backend.services.llm import call_llm
 
 router = APIRouter()
@@ -103,10 +103,6 @@ async def recruiter_screen(
         raise HTTPException(status_code=422, detail="Upload at least one PDF resume.")
     if len(resumes) > 5:
         raise HTTPException(status_code=413, detail="Recruiter mode accepts up to five resumes per batch.")
-    total_bytes = sum(resume.size or 0 for resume in resumes)
-    if total_bytes > MAX_PDF_BYTES:
-        raise HTTPException(status_code=413, detail="Recruiter batch PDFs must total 4 MB or less.")
-
     candidates = []
     for resume in resumes:
         try:

@@ -156,7 +156,6 @@ The `v3` branch adds an evidence-first workflow around the existing analysis:
 - Interview practice questions and answer outlines are generated from the resume and job description.
 - Recruiter mode screens up to five PDF resumes against one job description and ranks the results with requirement evidence. It is a review aid; recruiters should verify evidence and make decisions themselves.
 - Resume and job text are size-limited, common direct prompt-injection commands are rejected, document text is isolated as untrusted prompt data, agent outputs are schema-validated, and rendered text is HTML-escaped.
-- Resume PDF uploads are limited to 4 MB; recruiter batches must total 4 MB or less to stay within hosted request-size limits.
 
 These safeguards reduce prompt-injection and output risks; no text filter can guarantee detection of every adversarial input. The Groq model receives resume and job text for analysis. Recruiter mode should only be used for candidate data the operator is authorized to process.
 

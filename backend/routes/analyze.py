@@ -43,7 +43,7 @@ async def analyze(
 
     file_bytes = await resume.read(MAX_PDF_BYTES + 1)
     if len(file_bytes) > MAX_PDF_BYTES:
-        raise HTTPException(status_code=413, detail="Resume PDF must be 4 MB or smaller.")
+        raise HTTPException(status_code=413, detail="Resume PDF must be 10 MB or smaller.")
     if not file_bytes.startswith(b"%PDF-"):
         raise HTTPException(status_code=422, detail="The uploaded file is not a valid PDF.")
     resume_text = await extract_text_from_pdf(file_bytes)
