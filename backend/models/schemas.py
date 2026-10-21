@@ -4,7 +4,7 @@ Extends v3 AnalyzeResponse with v7 agent output fields.
 Fully backward-compatible: v3 fields (score, missing_skills, suggestions,
 rewritten_bullets, eval) are unchanged.
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Any
 
 
@@ -30,6 +30,10 @@ class AnalyzeResponse(BaseModel):
     matched_skills:    List[str] = []
     gap_summary:       str = ""
     tailored_summary:  str = ""
+    tailored_resume:   dict = Field(default_factory=dict)
+    interview_questions: List[dict] = Field(default_factory=list)
+    requirement_evidence: List[dict] = Field(default_factory=list)
+    job_title:         str = ""
     quick_wins:        List[str] = []
     agent_trace:       List[str] = []         # per-agent log messages
     processing_time_ms: float = 0.0

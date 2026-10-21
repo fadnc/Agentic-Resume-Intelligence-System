@@ -36,6 +36,8 @@ class ResumeState(TypedDict):
     # ── Rewriter agent ────────────────────────────────────────────────────────
     rewritten_bullets: Optional[list]   # [{section, original, rewritten, reason}]
     tailored_summary: Optional[str]
+    tailored_resume: Optional[dict]
+    interview_questions: Optional[list]
     improvement_tips: Optional[list]
 
     # ── Eval (v3 RAGAS-style, computed after rewriter) ────────────────────────

@@ -18,6 +18,7 @@ faiss-cpu
 
 #  PDF parsing
 pymupdf
+python-docx
 
 #  JD scraper
 requests

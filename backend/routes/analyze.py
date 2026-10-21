@@ -14,6 +14,13 @@ from backend.agents.graph import agent_graph
 from backend.services.parser import extract_text_from_pdf
 from backend.services.mlflow_tracking import log_analysis_run
 from backend.models.schemas import AnalyzeResponse
+from backend.security.input_guard import (
+    MAX_JOB_DESCRIPTION_CHARS,
+    MAX_PDF_BYTES,
+    MAX_RESUME_TEXT_CHARS,
+    check_untrusted_text,
+)
+from backend.services.evidence import build_requirement_evidence
 
 router = APIRouter()
 logger = logging.getLogger("resume-ai")
@@ -31,14 +38,28 @@ async def analyze(
       PDF parse → JD scrape (optional) → retrieval → parser →
       jd_analyst → gap_analyst → rewriter → RAGAS eval
     """
-    if not resume.filename.lower().endswith(".pdf"):
+    if not resume.filename or not resume.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=422, detail="Only PDF resumes are supported.")
 
-    file_bytes = await resume.read()
+    file_bytes = await resume.read(MAX_PDF_BYTES + 1)
+    if len(file_bytes) > MAX_PDF_BYTES:
+        raise HTTPException(status_code=413, detail="Resume PDF must be 10 MB or smaller.")
+    if not file_bytes.startswith(b"%PDF-"):
+        raise HTTPException(status_code=422, detail="The uploaded file is not a valid PDF.")
     resume_text = await extract_text_from_pdf(file_bytes)
 
     if not resume_text.strip():
         raise HTTPException(status_code=422, detail="Could not extract text from PDF.")
+
+    try:
+        resume_text = check_untrusted_text(
+            resume_text, label="Resume text", max_chars=MAX_RESUME_TEXT_CHARS
+        )
+        job_description = check_untrusted_text(
+            job_description, label="Job description", max_chars=MAX_JOB_DESCRIPTION_CHARS
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     start = time.time()
 
@@ -131,6 +152,12 @@ async def analyze(
         matched_skills=result.get("matched_skills") or [],
         gap_summary=result.get("gap_summary") or "",
         tailored_summary=result.get("tailored_summary") or "",
+        tailored_resume=result.get("tailored_resume") or result.get("parsed_resume") or {},
+        interview_questions=result.get("interview_questions") or [],
+        requirement_evidence=build_requirement_evidence(
+            resume_text, result.get("parsed_jd") or {}
+        ),
+        job_title=(result.get("parsed_jd") or {}).get("title", ""),
         quick_wins=result.get("quick_wins") or [],
         agent_trace=result.get("messages") or [],
         eval=result.get("eval_metadata"),
